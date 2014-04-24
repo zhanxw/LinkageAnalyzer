@@ -1,0 +1,61 @@
+0.8.3
+* Fix crashing when analyzing R0511 G1 pedigree
+0.8.2
+* Avoid crash when G2dam file has only three column
+0.8.1
+* Avoid crash when G2dam file has full columns of NA
+* when G2 mother is VAR, do not crash on double link
+0.8
+* The function to parse multiple runs of single_link is provided (single_parse)
+0.7.6
+* Modified the plotting function in double_link
+0.7.5
+* A critical bug is fixed for calculating the probability of producing HET,VAR; VAR,HET; VAR,VAR mice
+0.7.4
+* A bug is cleared when the chromosome and genomoic locations are in random order rather than ascending order
+0.7.3
+* Bug fix for 0.7.2
+0.7.2
+* A minor addition to the code so that if certain G2 mother's genotype is unknown but at least one of its child is VAR, the mother is deemed HET
+0.7.1
+* Lethality tests have been reversed back to the Monte Carlo approach due to the problem of long run time
+0.7
+* Exact tests were applied to test for lethality in both single_link and double_link
+0.6.5
+* double_link now looks at the probability of VAR,HET; HET,VAR; and VAR,VAR for synthetic lethality test
+0.6.4
+* Added the test for synthetic lethality
+* Added a new mode to test for inhibitory effect of two genes in double_link
+0.6.3
+* Modified the distribution plots for both single_link and double_link
+* Genes with all "FALSE" genotypes are now completely removed from the plot and also from the Bonferroni calculation.
+* Bonferroni correction is applied for double_link
+0.6.2
+* G2 mother with VAR will cause a warning instead of an error
+* Fixed a bug that happens when only one mother has been genotyped
+0.6
+* Cleared a minor bug in double_link
+0.5.3
+* Equal variance is required when detecting multiple modes in phenotype scores to avoid unreasonable assignment of G3 mice
+0.5.2
+* If the genders of all G3 mice are the same, the gender variable is automatically deleted from statistical testing
+0.5.1
+* Penetrance and semidomiance are now attached in the analysis results from single_link
+* The method to calculate lethal gene p values has been updated
+0.5
+* The function to test combinatory effect is complete now
+* An option is added to test deviation from both directions (tail="both")
+* An option is added to automatically detect possible clustering of phenotype scores and transform continuous variables to binary variables (detect=c("always","auto","never"))
+0.4.2
+* Added an option to control which direction from control to test for antibody reaction.
+* Added an option to create personalized names for each job.
+0.4
+* Added the function to test combinatory effect of two mutations.
+0.3
+* The fixed effect model no longer considers G2 mother effect. 
+0.2
+* Added a vignette
+* Added a log file as output 
+* Added scattorplots of phenotypes (continous) and table plots of phenotypes (binary) in an output pdf file
+* Replaced the specification of output file names with one output folder to contain all the file
+* Sex is now treated as 0 or 1 (numerical), with missing values equal to 0.5
