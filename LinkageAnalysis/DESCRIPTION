@@ -10,4 +10,4 @@ Maintainer: Tao Wang <tao.wang@utsouthwestern.edu>, Xiaowei Zhan
 Depends: R (>= 2.15.0), lme4, gplots, mclust
 Description: NA
 License: GPL-2
-Packaged: 2014-04-25 16:26:19 UTC; zhanxw
+Packaged: 2014-04-25 16:59:56 UTC; zhanxw

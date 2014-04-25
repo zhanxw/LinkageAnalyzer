@@ -1,5 +1,5 @@
 0.8.4
-* add 'transform.pheno = "log"' for single_link()
+* add 'transform.pheno = "log"' for single_link() and double_link()
 0.8.3
 * Fix crashing when analyzing R0511 G1 pedigree (Tao's suggestion)
 0.8.2
