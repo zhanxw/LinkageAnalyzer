@@ -1,5 +1,7 @@
+0.8.4
+* add 'transform.pheno = "log"' for single_link()
 0.8.3
-* Fix crashing when analyzing R0511 G1 pedigree
+* Fix crashing when analyzing R0511 G1 pedigree (Tao's suggestion)
 0.8.2
 * Avoid crash when G2dam file has only three column
 0.8.1

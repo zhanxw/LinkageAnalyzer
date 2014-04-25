@@ -1,7 +1,7 @@
 # this function reads the main data and the optional G2 genotype data if G2
 # genotype data, the returned list will have an additional element
-get_data <- function(main = "", G2 = "", log_file, detect) {
-  data <- get_main(main, log_file, detect)
+get_data <- function(main = "", G2 = "", log_file, detect, transform.pheno = NULL) {
+  data <- get_main(main, log_file, detect, transform.pheno)
   if (G2 != "") {
     data <- c(data, list(G2 = get_G2(G2, log_file)))
   }
@@ -61,7 +61,7 @@ get_G2 <- function(file = "", log_file) {
   return(raw)
 }
 
-get_main <- function(file = "", log_file, detect) {
+get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
   # read raw data and check format
   raw <- read.csv(file, header = F, stringsAsFactor = F)
   raw[1:3, 1:2] <- "na"
@@ -142,6 +142,27 @@ get_main <- function(file = "", log_file, detect) {
       "UNAFFECTED"), labels = c("AFFECTED", "UNAFFECTED"))  # binary phenotype
   } else {
     pheno$phenotype <- as.numeric(as.vector(pheno$phenotype))  # continous phenotype
+
+    # transform phenotype
+    if (!is.null(transform.pheno)) {
+        if (transform.pheno == "log" || transform.pheno == "log10") {
+            if (any(pheno$phenotype <= 0)) {
+                print(pheno$phenotype)
+                report("w", "At least one phenotype is non-positive and cannot be log transformed - now filled with minimum positive values", log_file)
+                min.pheno <- min (pheno$phenotype [ pheno$phenotype > 0], na.rm = TRUE)
+                pheno$phenotype [ pheno$phenotype <= 0] <- min.pheno
+            }
+        }
+        if (transform.pheno == "log") {
+            pheno$phenotype <- log(pheno$phenotype)
+        } else if (transform.pheno == "log10") {
+            pheno$phenotype <- log10(pheno$phenotype)
+        } else {
+            msg <- sprintf("Unrecognized transformation: [ %s ]", transform.pheno)
+            report("e", msg, log_file)            
+        }
+        ## print(pheno$phenotype)
+    }
     
     # convert to binary variable
     if (detect != "never") {

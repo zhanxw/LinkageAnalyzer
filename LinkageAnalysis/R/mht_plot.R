@@ -1,106 +1,113 @@
 # this function draws the manhattan plot
 mht <- function(genes, sig_gene, type, log_file, test, bin, effective, genotype) {
-  cls <- c("aquamarine4", "coral4", "cornflowerblue", "antiquewhite4", "chartreuse4", 
-    "chocolate4", "black", "cyan4", "darkgoldenrod", "brown4", "darkmagenta", 
-    "darkred", "deeppink4", "gold4", "green4", "indianred", "grey66", "lightgreen", 
-    "mediumorchid4", "darkorange")
-  alpha <- 0.05  # alpha level
-  genes$chr <- paste("chr", genes$chr, sep = "")
-  chrs <- unique(genes$chr)
-  bonferroni <- alpha/sum(effective)
-  
-  if (type %in% c("additive", "recessive", "dominant", "TDT")) {
-    genes <- cbind(genes, sig_gene = sig_gene[, type])
-    
-    # initialize plot
-    par(mar = c(5, 5, 4, 4), xpd = T)
-    yhei <- 1 + round(max(c(4, -log10(alpha/sum(effective)), unlist(-log10(genes[, 
-      -c(1:8)])))))
-    plot(0:5, 0:5, ylim = c(-2, yhei + 1.5), xlim = c(-2, dim(genes)[1] + 1), 
-      cex.lab = 2, type = "n", ylab = "-log10(pval)", xlab = "Genomic location", 
-      xaxt = "n", yaxt = "n")
-    
-    # plot each chr and label
-    start <- 1
-    for (i in 1:length(chrs)) {
-      chr <- chrs[i]
-      temp <- genes[genes$chr == chr, ]
-      temp <- rbind(temp[1, ], temp)  # avoid the problem when there is only one gene
-      lines(start + c(0, 0:(dim(temp)[1] - 2)), -log10(temp$sig_gene), col = cls[i], 
-        lwd = 5)
-      text(x = start + dim(temp)[1]/2 - 1, y = -1, lab = chr, srt = 90, cex = 2)  # label chr
-      start <- start + dim(temp)[1] - 1
-    }
-    
-    # axis and title
-    axis(2, pos = 0, at = 0:yhei, cex.axis = 1.5)
-    if (bin == T) {
-      bin_lab <- "binary"
+    cls <- c("aquamarine4", "coral4", "cornflowerblue", "antiquewhite4", "chartreuse4",
+             "chocolate4", "black", "cyan4", "darkgoldenrod", "brown4", "darkmagenta",
+             "darkred", "deeppink4", "gold4", "green4", "indianred", "grey66", "lightgreen",
+             "mediumorchid4", "darkorange")
+    alpha <- 0.05  # alpha level
+    genes$chr <- paste("chr", genes$chr, sep = "")
+    chrs <- unique(genes$chr)
+    bonferroni <- alpha/sum(effective)
+
+    if (type %in% c("additive", "recessive", "dominant", "TDT")) {
+        genes <- cbind(genes, sig_gene = sig_gene[, type])
+
+        # initialize plot
+        par(mar = c(5, 5, 4, 4), xpd = T)
+        yhei <- 1 + round(max(c(4, -log10(alpha/sum(effective)), unlist(-log10(genes[,
+                                                                                     -c(1:8)])))))
+        plot(0:5, 0:5, ylim = c(-2, yhei + 1.5), xlim = c(-2, dim(genes)[1] + 1),
+             cex.lab = 2, type = "n", ylab = "-log10(pval)", xlab = "Genomic location",
+             xaxt = "n", yaxt = "n")
+
+        # plot each chr and label
+        start <- 1
+        for (i in 1:length(chrs)) {
+            chr <- chrs[i]
+            temp <- genes[genes$chr == chr, ]
+            temp <- rbind(temp[1, ], temp)  # avoid the problem when there is only one gene
+            lines(start + c(0, 0:(dim(temp)[1] - 2)), -log10(temp$sig_gene), col = cls[i],
+                  lwd = 5)
+            text(x = start + dim(temp)[1]/2 - 1, y = -1, lab = chr, srt = 90, cex = 2)  # label chr
+            start <- start + dim(temp)[1] - 1
+        }
+
+        # axis and title
+        axis(2, pos = 0, at = 0:yhei, cex.axis = 1.5)
+        if (bin == T) {
+            bin_lab <- "binary"
+        } else {
+            bin_lab <- "continuous"
+        }
+        title(paste("Manhattan plot:", type, "model (", test, bin_lab, ")"), cex.main = 2)
+
+        # pval cutoff
+        segments(x0 = 0, x1 = dim(genes)[1], y0 = -log10(alpha), lwd = 2, lty = 3)
+        segments(x0 = 0, x1 = dim(genes)[1], y0 = -log10(bonferroni), lwd = 2, lty = 3)
+
+        occupied <- round(yhei)  # for labeling significant genes
+        # occupied y positions for gene name labels can only be integer/2
+
+        for (i in 1:dim(genes)[1]) {
+            # make a mark if all G3 failed for this gene
+            if (all(genotype[i, ] == "FAILED")) {
+                rect(xleft = i - 0.2, xright = i + 0.2, ybottom = -0.05, ytop = 0.05,
+                     col = "red", border = NA)
+            }
+
+            if (genes$sig_gene[i] >= alpha) {
+                next
+            }
+            tmp <- -log10(genes$sig_gene[i])  # tmp is the y position for mht plot
+            trial <- 1  # if a good position cannot be found, just pick one
+
+            repeat {
+                y_attempt <- tmp + runif(1, 0, yhei - tmp + 0.5)
+                y_attempt <- round(y_attempt * 2)/2  # try this one
+                if (y_attempt == occupied[length(occupied)])
+                    {
+                        next
+                    }  # definitely cannot be the one just before it
+                trial <- trial + 1
+                if ((!y_attempt %in% occupied[max(1, length(occupied) - 4):length(occupied)]) ||
+                    trial > 20)
+                    {
+                        break
+                    }  # find a good position or fail to find one too many times
+            }
+
+            occupied <- c(occupied, y_attempt)  # add this gene y pos to the occupied list
+            addAlpha <- function(name, alpha = 1) {
+                v <- col2rgb(name)
+                v <- v / 255
+                rgb(v[1], v[2], v[3], alpha)
+            }
+            text.col <- "brown1"
+            segment.col <- addAlpha("brown1", 0.5)
+            text(x = i, y = y_attempt + 0.5, genes$Gene[i], pos = 3, col = text.col,
+                 cex = 1.2)  # the actual y pos is y_attemp+0.5
+            segments(x0 = i, y0 = y_attempt + 0.5, y1 = tmp, col = segment.col, lwd = 2)  # vertical line
+            segments(x0 = i - 0.5, x1 = i + 0.5, y0 = y_attempt + 0.5, col = segment.col,
+                     lwd = 2)  # horizontal short line
+        }
     } else {
-      bin_lab <- "continuous"
+        # blank plot
+        plot(0:20, 0:20, type = "n", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
+
+        # draw legend
+        for (i in 1:length(cls)) {
+            segments(x0 = 2, x1 = 3, y0 = 20 - i, y1 = 20 - i, lwd = 4, col = cls[i])
+            text(x = 3, y = 20 - i, lab = chrs[i], pos = 4)
+        }
+
+        # lethal gene label
+        rect(xleft = 7 - 0.2, xright = 7 + 0.2, ytop = 19 + 0.2, ybottom = 19 - 0.2,
+             col = "deeppink")
+        rect(xleft = 7 - 0.2, xright = 7 + 0.2, ytop = 18 + 0.2, ybottom = 18 - 0.2,
+             col = "darkorange")
+        text(x = 7 + 0.2, y = 19, lab = "Lethal gene (count=0,pval<0.05)", pos = 4)
+        text(x = 7 + 0.2, y = 18, lab = "Lethal gene (pval<0.05)", pos = 4)
     }
-    title(paste("Mht plot:", type, "model (", test, bin_lab, ")"), cex.main = 2)
-    
-    # pval cutoff
-    segments(x0 = 0, x1 = dim(genes)[1], y0 = -log10(alpha), lwd = 2, lty = 3)
-    segments(x0 = 0, x1 = dim(genes)[1], y0 = -log10(bonferroni), lwd = 2, lty = 3)
-    
-    occupied <- round(yhei)  # for labeling significant genes    
-    # occupied y positions for gene name labels can only be integer/2
-    
-    for (i in 1:dim(genes)[1]) {
-      # make a mark if all G3 failed for this gene
-      if (all(genotype[i, ] == "FAILED")) {
-        rect(xleft = i - 0.2, xright = i + 0.2, ybottom = -0.05, ytop = 0.05, 
-          col = "red", border = NA)
-      }
-      
-      if (genes$sig_gene[i] >= alpha) {
-        next
-      }
-      tmp <- -log10(genes$sig_gene[i])  # tmp is the y position for mht plot
-      trial <- 1  # if a good position cannot be found, just pick one
-      
-      repeat {
-        y_attempt <- tmp + runif(1, 0, yhei - tmp + 0.5)
-        y_attempt <- round(y_attempt * 2)/2  # try this one
-        if (y_attempt == occupied[length(occupied)]) 
-          {
-          next
-          }  # definitely cannot be the one just before it 
-        trial <- trial + 1
-        if ((!y_attempt %in% occupied[max(1, length(occupied) - 4):length(occupied)]) || 
-          trial > 20) 
-          {
-          break
-          }  # find a good position or fail to find one too many times
-      }
-      
-      occupied <- c(occupied, y_attempt)  # add this gene y pos to the occupied list
-      text(x = i, y = y_attempt + 0.5, genes$Gene[i], pos = 3, col = "brown1", 
-        cex = 1.2)  # the actual y pos is y_attemp+0.5
-      segments(x0 = i, y0 = y_attempt + 0.5, y1 = tmp, col = "brown1", lwd = 2)  # vertical line
-      segments(x0 = i - 0.5, x1 = i + 0.5, y0 = y_attempt + 0.5, col = "brown1", 
-        lwd = 2)  # horizontal short line
-    }
-  } else {
-    # blank plot
-    plot(0:20, 0:20, type = "n", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
-    
-    # draw legend
-    for (i in 1:length(cls)) {
-      segments(x0 = 2, x1 = 3, y0 = 20 - i, y1 = 20 - i, lwd = 4, col = cls[i])
-      text(x = 3, y = 20 - i, lab = chrs[i], pos = 4)
-    }
-    
-    # lethal gene label
-    rect(xleft = 7 - 0.2, xright = 7 + 0.2, ytop = 19 + 0.2, ybottom = 19 - 0.2, 
-      col = "deeppink")
-    rect(xleft = 7 - 0.2, xright = 7 + 0.2, ytop = 18 + 0.2, ybottom = 18 - 0.2, 
-      col = "darkorange")
-    text(x = 7 + 0.2, y = 19, lab = "Lethal gene (count=0,pval<0.05)", pos = 4)
-    text(x = 7 + 0.2, y = 18, lab = "Lethal gene (pval<0.05)", pos = 4)
-  }
-  
-  return(bonferroni)
-} 
+
+    return(bonferroni)
+}

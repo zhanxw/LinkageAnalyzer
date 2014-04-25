@@ -77,7 +77,7 @@ anova_test <- function(data, bin, test, silent = T, log_file, tail) {
     return(convert_tail(tmp$direction, tmp$p.val, tail))
   }, error = function(err) {
     if (silent == F) {
-      report("m", "Error occured!", log_file)
+      report("m", "Error occured in ANOVA!", log_file)
     }
     return(1)
   })
