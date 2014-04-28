@@ -1,3 +1,9 @@
+0.8.7
+* refactor codes from R to C++
+0.8.6
+* output version and date/time in single_parse()
+0.8.5
+* improve speed for double_lethal(), a major speed bottleneck
 0.8.4
 * add 'transform.pheno = "log"' for single_link() and double_link()
 0.8.3

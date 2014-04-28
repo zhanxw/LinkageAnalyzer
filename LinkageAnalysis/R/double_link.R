@@ -20,10 +20,12 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
     signif <- matrix(data = 1, nrow = input$n, ncol = input$n)  # significance matrix
     colnames(signif) <- input$genes$Gene
     rownames(signif) <- input$genes$Gene
-    sig <- list(recessive = signif, additive = signif, dominant = signif, inhibitory = signif,
+    sig <- list(recessive = signif, additive = signif, dominant = signif,
+                inhibitory = signif,
                 lethal = signif)
 
     # statistical test
+    report("m", paste("Total ", input$n, " gene(s) to test"), fns$log_file)    
     for (i in 1:(input$n - 1)) {
         if (silent == FALSE) {
             report("m", paste("---", input$genes$Gene[i], "---"), fns$log_file)
@@ -33,10 +35,9 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
         for (j in (i + 1):input$n) {
             gt2 <- unlist(input$genotype[j, ])  # genotype of the second gene
             tmp <- convert_gt(gt1, "additive") - convert_gt(gt2, "additive")
-            if (sum(!is.na(tmp)) <= 10)
-                {
-                    next
-                }  # too many NA values
+            if (sum(!is.na(tmp)) <= 10) {
+                next
+            }  # too many NA values
 
             # prepare table of input and response variables
             data <- data.frame(pt = input$phenotype$phenotype, sex = input$phenotype$sex,
@@ -48,8 +49,8 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
             }
 
             # if the two genes locate within 30MB, skipped
-            if (input$genes$chr[i] == input$genes$chr[j] && abs(input$genes$pos[i] -
-                                   input$genes$pos[j]) < 3e+07) {
+            if (input$genes$chr[i] == input$genes$chr[j] &&
+                abs(input$genes$pos[i] - input$genes$pos[j]) < 3e+07) {
                 next
             }
 

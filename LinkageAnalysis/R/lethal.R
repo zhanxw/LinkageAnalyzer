@@ -59,53 +59,58 @@ single_lethal <- function(genotype, genes, phenotype, G2, n_trial) {
 # this function runs random sampling to find the number of G3 mice with desired
 # genotype
 double_sample <- function(mother_gt1, mother_gt2, n_G3, n_trial) {
-    if (is.null(mother_gt1) || is.na(mother_gt1) || mother_gt1 %in% c("FALSE", "FAILED",
-                                                                      "ERROR")) {
+    if (is.null(mother_gt1) || is.na(mother_gt1) ||
+        mother_gt1 %in% c("FALSE", "FAILED", "ERROR")) {
         mother_gt1 <- "unknown"
     }
-    if (is.null(mother_gt2) || is.na(mother_gt2) || mother_gt2 %in% c("FALSE", "FAILED",
-                                                                      "ERROR")) {
+    if (is.null(mother_gt2) || is.na(mother_gt2) ||
+        mother_gt2 %in% c("FALSE", "FAILED", "ERROR")) {
         mother_gt2 <- "unknown"
     }
 
-    if (mother_gt1 == "REF" && mother_gt2 == "REF")
-        {
-            return(rep(0, n_trial))
-        }  # cannot give the genotype we desired for sure
+    if (mother_gt1 == "REF" && mother_gt2 == "REF") {
+        # cannot give the genotype we desired for sure
+        ##return(rep(0, n_trial))
+        prob <- 0
+    }  
     if (mother_gt1 == "HET" && mother_gt2 == "HET") {
         prob <- 5/16
     }
-    if ((mother_gt1 == "HET" && mother_gt2 == "REF") || (mother_gt1 == "REF" && mother_gt2 ==
-                                    "HET")) {
+    if ((mother_gt1 == "HET" && mother_gt2 == "REF") ||
+        (mother_gt1 == "REF" && mother_gt2 == "HET")) {
         prob <- 1/8
     }
     if (mother_gt1 == "unknown" && mother_gt2 == "unknown") {
         prob <- (1/8 + 1/8 + 5/16)/4
     }
-    if ((mother_gt1 == "unknown" && mother_gt2 == "REF") || (mother_gt1 == "REF" &&
-                                        mother_gt2 == "unknown")) {
+    if ((mother_gt1 == "unknown" && mother_gt2 == "REF") ||
+        (mother_gt1 == "REF" && mother_gt2 == "unknown")) {
         prob <- (1/8)/2
     }
-    if ((mother_gt1 == "unknown" && mother_gt2 == "HET") || (mother_gt1 == "HET" &&
-                                        mother_gt2 == "unknown")) {
+    if ((mother_gt1 == "unknown" && mother_gt2 == "HET") ||
+        (mother_gt1 == "HET" && mother_gt2 == "unknown")) {
         prob <- (1/8 + 5/16)/2
     }
 
-    return(rbinom(n = n_trial, size = n_G3, prob = prob))
+    ## return(rbinom(n = n_trial, size = n_G3, prob = prob))
+    return(prob)
 }
 
 # this function tests for synthetic lethality of two genes (VAR,HET; HET,VAR; and
 # VAR,VAR)
 double_lethal <- function(data, input, i, j, n_trial) {
     mothers <- as.vector(unique(data$mother))
-    if (any(input$genes[c(i, j), "chr"] == "X"))
-        {
-            return(1)
-        }  # don't handle gene on chrX for the moment
+    if (any(input$genes[c(i, j), "chr"] == "X")) {
+        return(1)
+    }  # don't handle gene on chrX for the moment
 
-    MonteCarlo <- matrix(data = 0, nrow = n_trial, ncol = length(mothers))
-    colnames(MonteCarlo) <- mothers
-
+    ## MonteCarlo <- matrix(data = 0, nrow = n_trial, ncol = length(mothers))
+    ## colnames(MonteCarlo) <- mothers
+    prob <- rep(0, length(mothers))
+    names(prob) <- mothers
+    numG3 <- rep(0, length(mothers))
+    names(numG3) <- mothers
+    
     for (mother in mothers) {
         mother_gt1 <- input$G2[paste(input$genes$Gene[i], input$genes$Coordination[i]),
                                mother]
@@ -121,10 +126,14 @@ double_lethal <- function(data, input, i, j, n_trial) {
         if (any(data$gt2[data$mother == mother & !is.na(data$gt2)] == 2)) {
             mother_gt2 <- "HET"
         }
-        MonteCarlo[, mother] <- double_sample(mother_gt1, mother_gt2, n_G3, n_trial)
+        ## MonteCarlo[, mother] <- double_sample(mother_gt1, mother_gt2, n_G3, n_trial)
+        ## system.time(MonteCarlo[, mother] <- double_sample(mother_gt1, mother_gt2, n_G3, n_trial))
+        prob[mother]  <- double_sample(mother_gt1, mother_gt2, n_G3, n_trial)
+        numG3[mother] <- n_G3
     }
 
-    pval <- sum(apply(MonteCarlo, 1, sum) <= sum((data$gt1 + data$gt2) >= 3))/n_trial
-    
+    obs <- sum((data$gt1 + data$gt2) >= 3)
+    ## pval <- sum(apply(MonteCarlo, 1, sum) <= obs)/n_trial
+    pval <- doubleSample(prob, numG3, obs, 1000000)
     return(pval)
 }
