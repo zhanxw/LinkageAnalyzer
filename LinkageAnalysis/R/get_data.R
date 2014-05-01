@@ -41,6 +41,7 @@ get_G2 <- function(file = "", log_file) {
         rownames(raw) <- gene_pos
         return(raw)
     }
+
     # check level
     raw[, -c(1:3)] <- convert_upper(raw[, -c(1:3)])  # convert to upper case
     genotypes <- unlist(raw[, -c(1:3)])
@@ -70,7 +71,7 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
         all(is.na(x))
     }))]
     raw <- raw[!apply(raw[, -c(1:3)], 1, function(x) all(x == "FALSE")), ]  # delete all false ones
-
+    raw <- raw[, c(rep(TRUE, 3), raw[3,-seq(3)] != "na")] ## kick out missing phenotypes
     # check names
     if (raw[1, 3] != "G2 Dam eartag" || !grepl(pattern = "gender", raw[2, 3], ignore.case = TRUE) ||
         raw[3, 3] != "Phenotype" || raw[4, 1] != "Gene" || raw[4, 2] != "Coordination" ||

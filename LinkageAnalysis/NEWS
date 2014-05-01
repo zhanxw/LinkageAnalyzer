@@ -1,3 +1,7 @@
+0.8.9
+* when phenotype csv has "na" as phenotype, package does not crash
+0.8.8
+* adaptive p-value for double lethal genes
 0.8.7
 * refactor codes from R to C++
 0.8.6

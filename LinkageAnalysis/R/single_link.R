@@ -6,7 +6,13 @@ single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2"
     if (!tail %in% c("increasing", "decreasing", "both")) {
         report("e", "Unrecognized option for tail!", fns$log_file)
     }
-
+    ## # debug
+    ## if (TRUE) {
+    ##     save(list = ls(), file = "single_link.Rdata")
+    ## }
+    ## if (FALSE) {
+    ##     load("~/test.run/perm/Amber.1/td_rsfv_bga.20140427/single_link.Rdata", verbose = T)
+    ## }
     # read data
     raw_data <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)
     genes <- raw_data$genes
@@ -54,7 +60,7 @@ single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2"
             data <- data.frame(pt = pt, sex = sex, gt = convert_gt(gt, type), mother = mother)
             data <- data[!is.na(data$gt), ]
             if (length(unique(data$gt)) > 1) {
-                sig_gene[i, type] <- anova_test(data, bin, test, silent, fns$log_file, tail)
+                sig_gene[i, type] <- anova_test(data, bin, test, silent, fns$log_file, tail)$pvalue
                 if (sig_gene[i,type]==0) {
                     sig_gene[i,type]=1e-300
                 }

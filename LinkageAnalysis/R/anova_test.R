@@ -32,7 +32,7 @@ anova_test <- function(data, bin, test, silent = T, log_file, tail) {
         p.val <- 1
       }
       direction <- fixef(fit)["gt"] > 0  # TRUE means protective effect, FALSE means harmful effect (desired)
-    } else {
+    } else { ## without G2
       if (length(unique(data$sex)) == 1) {
         fit <- glm(pt ~ gt, family = fam, data = data)  # full model
         fit0 <- glm(pt ~ 1, family = fam, data = data)  # reduced model
@@ -82,5 +82,5 @@ anova_test <- function(data, bin, test, silent = T, log_file, tail) {
     return(1)
   })
   
-  return(pval_1tail)
+  return(list(pvalue = pval_1tail))
 } 
