@@ -14,8 +14,11 @@ heatmap_pval <- function(sig, type, test, cutoff_pair, mask, fns) {
   c <- c[order(c)]
   
   if (all(sig[[type]] == 1)) {
-    report("e", "All p values are equal to 1! \n    Maybe due to too few number of mice!", 
+    report("w", "All p values are equal to 1! \n    Maybe due to too few number of mice!", 
       fns$log_file)
+    plot(seq(10), seq(10), type = 'n', axes = F, xlab = "", ylab = "")
+    text(x = 5, y = 5, "All p values are equal to 1!")
+    return()
   }
   
   heatmap.2(-log10(sig[[type]][mask, mask]), dendrogram = "none", trace = "none", 

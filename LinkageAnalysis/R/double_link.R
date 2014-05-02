@@ -4,6 +4,19 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
                         silent = TRUE, tail = "decreasing", prefix = "",
                         cutoff_single = 0.01, n_trial = 1e+05, plot.it = TRUE,
                         transform.pheno = NULL) {
+  ## ##debug
+  ## save(list = ls(), file = "double_link.Rdata")
+  ## q('no')
+  ## if (FALSE) {
+  ##   load("/home/zhanxw/test.run/perm/Amber.1/td_rsfv_bga.20140427/double_link.Rdata", verbose = TRUE)
+  ##   source("/home/zhanxw/test.run/LinkageAnalysis/R/get_data.R")
+  ##   library(mclust)
+  ##   library(lme4)  
+  ##   main <- main_file
+  ##   G2 <- G2_file
+  ##   log_file <- fns$log_file
+  ## }
+  
   # input
   fns <- filename(output, prefix)  # generate output file names
   input <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)  # read data,G2 is null is G2 dam genotype data are not available
@@ -25,14 +38,26 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
               lethal = signif)
 
   # statistical test
+  null.model <- NULL
+  null.model.ok <- TRUE
   report("m", paste("Total ", input$n, " gene(s) to test"), fns$log_file)
   for (i in 1:(input$n - 1)) {
+    ## if (i != 1) {
+    ##   cat("skip i = ", i , " in debug\n")
+    ##   next
+    ## }
     if (silent == FALSE) {
       report("m", paste("---", input$genes$Gene[i], "---"), fns$log_file)
     }
     gt1 <- unlist(input$genotype[i, ])  # genotype of the first gene
 
     for (j in (i + 1):input$n) {
+      print(sprintf("%s - %s x %s - (%d, %d, %d) - %.3f%%",
+                    Sys.time(),
+                    input$genes$Gene[i], input$genes$Gene[j],
+                    i, j, input$n,
+                    100. * ((j - i - 1) + (input$n - 1 + (input$n - i + 1)) * (i - 1) / 2) /
+                    (input$n * (input$n - 1)/2) ))
       gt2 <- unlist(input$genotype[j, ])  # genotype of the second gene
       tmp <- convert_gt(gt1, "additive") - convert_gt(gt2, "additive")
       if (sum(!is.na(tmp)) <= 10) {
@@ -54,6 +79,16 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
         next
       }
 
+      # fit null model
+      ## source("/home/zhanxw/test.run/LinkageAnalysis/R/anova_test.R")
+      if (is.null(null.model)) {
+        null.model <- anova_test(data, input$bin, test, silent, fns$log_file, tail, fit.null = TRUE)$null.model
+        if (exists("last.warning", envir = baseenv())){
+          report("w", "Null cannot be fitted!!", fns$log_file)
+          null.model.ok <- FALSE
+        }
+      }
+      
       # test for combinatory effect
       for (type in c("recessive", "additive", "dominant", "inhibitory")) {
         if (type == "recessive") {
@@ -71,23 +106,32 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
         if (length(unique(data$gt)) == 1) {
           next
         }  # no difference in predictor values
-
-        sig[[type]][i, j] <- anova_test(data, input$bin, test, silent, fns$log_file, tail)$pvalue
-        sig[[type]][j, i] <- sig[[type]][i, j]
+        if (FALSE) {
+          system.time(anova_test(data, input$bin, test, silent, fns$log_file, tail, null.model = null.model))
+          system.time(anova_test(data, input$bin, test, silent, fns$log_file, tail))
+        }
+        if (!null.model.ok)  {
+          pval  <- 1
+        } else {
+          pval <- anova_test(data, input$bin, test, silent, fns$log_file, tail, null.model = null.model)$pvalue
+          sig[[type]][i, j] <- pval
+          sig[[type]][j, i] <- sig[[type]][i, j]
+        }
       }
 
       # test for synthetic lethality
       sig[["lethal"]][i, j] <- double_lethal(data, input, i, j, n_trial)
       sig[["lethal"]][j, i] <- sig[["lethal"]][i, j]
-    }
-  }
+      
+    } ## end loop j
+  } ## end loop i
 
   # run single_link to determine which genes to mask
   if (silent == FALSE) {
     report("m", "Running single_link", fns$log_file)
   }
   single_link(main_file = main_file, G2_file = G2_file, detect = detect, output = tempdir(),
-              silent = TRUE, test = test, tail = tail)  # run single_link
+              silent = TRUE, test = test, tail = tail, plot.it = FALSE)  # run single_link
   SignifOfSingle <- read.csv(filename(tempdir(), prefix = "")$csv_file)  # get significance
   SignifOfSingle$inhibitory <- 1  # dummy for inhibitory mode, include all
   unlink(as.vector(filename(tempdir(), prefix = "")))

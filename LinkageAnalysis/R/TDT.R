@@ -37,7 +37,7 @@ TDT <- function(data, G2, gene, bin, log_file) {
   # for A (-), from one parent
 
   for (mother in unique(data_iTDT$mother)) {
-    print (mother)
+    ## print (mother)
     data_iTDT_mother <- data_iTDT[data_iTDT$mother == mother, ]
     if (sum(data_iTDT_mother$pt == "AFFECTED") == 0) {
       next

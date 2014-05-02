@@ -201,8 +201,8 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
     genotype <- as.data.frame(genotype)
 
     # get chr/pos and sort genes table
-    gene$chr <- sub(pattern = "_.*", replacement = "", gene$Coord, perl = TRUE)  # split Coordinates
-    gene$pos <- sub(pattern = ".*_", replacement = "", gene$Coord, perl = TRUE)
+    gene$chr <- sub(pattern = "_.*", replacement = "", gene$Coordination, perl = TRUE)  # split Coordinates
+    gene$pos <- sub(pattern = ".*_", replacement = "", gene$Coordination, perl = TRUE)
     gene$pos <- as.numeric(gene$pos)
     temp <- suppressWarnings({
         new_order <- order(as.numeric(gene$chr), gene$pos)
