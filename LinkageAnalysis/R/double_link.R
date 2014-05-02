@@ -16,7 +16,8 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
   ##   G2 <- G2_file
   ##   log_file <- fns$log_file
   ## }
-  
+
+  start.time <- Sys.time()
   # input
   fns <- filename(output, prefix)  # generate output file names
   input <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)  # read data,G2 is null is G2 dam genotype data are not available
@@ -201,4 +202,15 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
     write.csv(sig[[type]], file = sub(pattern = "full", replacement = paste(type),
                                fns$csv_file), quote = FALSE)
   }
+  end.time <- Sys.time()
+  diff.time <- difftime(end.time, start.time, units = "secs")
+  msg <- (sprintf("double_link() finished in %.3f seconds - [main=%s;G2=%s;test=%s;detect=%s;tail=%s]",
+                  diff.time,
+                  main_file,
+                  G2_file,
+                  test,
+                  detect,
+                  tail))
+  print(msg)
+  report("m", msg, fns$log_file)
 }

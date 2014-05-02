@@ -86,11 +86,12 @@ anova_test <- function(data, bin, test, silent = T, log_file, tail,
       ## print(err)
     }
     pval <- 1
-    return(list(pvalue = pval, direction = NA, null.model = NA))
+    return(list(pvalue = pval, direction = NA, null.model = NA, error.occured = TRUE))
   })
 
-  ## warning has occured during fitting
-  if (exists("last.warning", envir = baseenv())){
+  ## warning has occured during fitting, but error not occured
+  if ( exists("last.warning", envir = baseenv()) &&
+      ! "error.occured" %in% names(pval_1tail) ){
     ## suppressWarnings((tmp <- test_commands()))  # run again, suppress warnings
 
     if (bin == F) {
