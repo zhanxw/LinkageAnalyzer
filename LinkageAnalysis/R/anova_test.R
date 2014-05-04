@@ -75,13 +75,21 @@ anova_test <- function(data, bin, test, silent = T, log_file, tail,
   }
 
   # put the testing commands in one block
+  assign("last.warning", NULL, envir = baseenv())
   pval_1tail <- tryCatch({
     tmp <- test_commands()
     pval <- convert_tail(tmp$direction, tmp$pvalue, tail)  # if everything is ok
-    return(list(pvalue = pval, direction = tmp$direction, null.model = tmp$null.model))    
+    return(list(pvalue = pval, direction = tmp$direction, null.model = tmp$null.model))
   }, error = function(err) {
     if (silent == F) {
-      report("m", "Error occured in ANOVA!", log_file)
+      if ("message" %in% err$message ) {
+        m <- error$message
+      } else {
+        m <- "unknown"
+      }
+      msg <- sprintf("Error occured in ANOVA: %s", m)
+      report("m", msg, log_file)
+      print(err)
       ## cat("err=\n")
       ## print(err)
     }
@@ -90,7 +98,7 @@ anova_test <- function(data, bin, test, silent = T, log_file, tail,
   })
 
   ## warning has occured during fitting, but error not occured
-  if ( exists("last.warning", envir = baseenv()) &&
+  if ( exists("last.warning", envir = baseenv()) && !is.null(last.warning) &&
       ! "error.occured" %in% names(pval_1tail) ){
     ## suppressWarnings((tmp <- test_commands()))  # run again, suppress warnings
 
@@ -112,9 +120,9 @@ anova_test <- function(data, bin, test, silent = T, log_file, tail,
     }
 
     pval <- convert_tail(tmp$direction, tmp$pvalue, tail)
-    return(list(pvalue = pval, direction = tmp$direction, null.model = tmp$fit0))        
+    return(list(pvalue = pval, direction = tmp$direction, null.model = tmp$fit0))
   }
-  
+
   ## return(list(pvalue = pval_1tail))
   return(pval_1tail)
 }

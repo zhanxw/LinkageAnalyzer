@@ -37,6 +37,7 @@ get_G2 <- function(file = "", log_file) {
         report("e", "Duplicate gene found!", log_file)
     }
 
+    ## no genotype info
     if (ncol(raw) == 3) {
         rownames(raw) <- gene_pos
         return(raw)
@@ -91,6 +92,7 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
     }
 
     # check level
+    # determine binary (TRUE/FALSE) depends on status (phenotype) is numeric or not
     status <- unlist(raw[3, -c(1:3)])
     if (suppressWarnings(any(is.na(as.numeric(status))))) {
         bin <- TRUE  # binary phenotype variable
@@ -120,12 +122,12 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
     # split table
     gene <- raw[-c(1:4), 1:2]
     colnames(gene) <- c("Gene", "Coordination")
-    rownames(gene) <- raw[-c(1:4), 3]
+    rownames(gene) <- raw[-c(1:4), 3] ## Amplicon as gene name
     gene <- as.data.frame(gene)
 
     pheno <- t(raw[1:3, -c(1:3)])  # mother, sex and phenotype are all capitalized
     colnames(pheno) <- c("mother", "sex", "phenotype")
-    rownames(pheno) <- raw[4, -c(1:3)]
+    rownames(pheno) <- raw[4, -c(1:3)] ## ear tags
     pheno <- as.data.frame(pheno)
     pheno$mother <- factor(toupper(pheno$mother))
 

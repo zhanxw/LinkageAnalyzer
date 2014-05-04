@@ -22,7 +22,7 @@ TDT <- function(data, G2, gene, bin, log_file) {
   data$mother <- as.vector(data$mother)
   data <- data[!is.na(data$gt), ]
   data <- data[!is.na(data$pt), ]
-  
+
   ############# iTDT ####################
 
   # find gt of mothers
@@ -76,10 +76,10 @@ TDT <- function(data, G2, gene, bin, log_file) {
         next
       }  # at least one affected and one unaffected
 
-    mA <- sum(data_sTDT_mother$gt[data_sTDT_mother$pt == "AFFECTED"])/sum(data_sTDT_mother$pt ==
-                                      "AFFECTED")
-    mU <- sum(data_sTDT_mother$gt[data_sTDT_mother$pt == "UNAFFECTED"])/sum(data_sTDT_mother$pt ==
-                                      "UNAFFECTED")
+    mA <- sum(data_sTDT_mother$gt[data_sTDT_mother$pt == "AFFECTED"])/
+        sum(data_sTDT_mother$pt == "AFFECTED")
+    mU <- sum(data_sTDT_mother$gt[data_sTDT_mother$pt == "UNAFFECTED"])/
+        sum(data_sTDT_mother$pt == "UNAFFECTED")
     bcs <- c(bcs, mA - mU)
   }
 

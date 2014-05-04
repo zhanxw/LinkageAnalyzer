@@ -11,7 +11,7 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
   ##   load("/home/zhanxw/test.run/perm/Amber.1/td_rsfv_bga.20140427/double_link.Rdata", verbose = TRUE)
   ##   source("/home/zhanxw/test.run/LinkageAnalysis/R/get_data.R")
   ##   library(mclust)
-  ##   library(lme4)  
+  ##   library(lme4)
   ##   main <- main_file
   ##   G2 <- G2_file
   ##   log_file <- fns$log_file
@@ -40,7 +40,7 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
 
   # statistical test
   null.model <- NULL
-  null.model.ok <- TRUE
+  null.model.ok <- NULL
   report("m", paste("Total ", input$n, " gene(s) to test"), fns$log_file)
   for (i in 1:(input$n - 1)) {
     ## if (i != 1) {
@@ -53,6 +53,10 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
     gt1 <- unlist(input$genotype[i, ])  # genotype of the first gene
 
     for (j in (i + 1):input$n) {
+      ## debug
+      ## if (i != 1 || j != 4) {
+      ##   next
+      ## }
       print(sprintf("%s - %s x %s - (%d, %d, %d) - %.3f%%",
                     Sys.time(),
                     input$genes$Gene[i], input$genes$Gene[j],
@@ -69,7 +73,16 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
       data <- data.frame(pt = input$phenotype$phenotype, sex = input$phenotype$sex,
                          mother = input$phenotype$mother, gt1 = convert_gt(gt1, "additive"),
                          gt2 = convert_gt(gt2, "additive"))
-      data <- data[(!is.na(data$gt1)) & (!is.na(data$gt2)), ]
+      hasMissingGeno <- any(is.na(data$gt1) | !is.na(data$gt2))
+      if (hasMissingGeno) {
+        ## impute missing genotype to its mean
+        naIdx <- is.na(data$gt1)
+        data$gt1[naIdx] <- mean(data$gt1, na.rm = TRUE)
+        naIdx <- is.na(data$gt2)
+        data$gt2[naIdx] <- mean(data$gt2, na.rm = TRUE)
+        ## data <- data[(!is.na(data$gt1)) & (!is.na(data$gt2)), ]
+      }
+
       if (length(unique(data$gt1)) == 1 || length(unique(data$gt2)) == 1) {
         next
       }
@@ -83,13 +96,16 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
       # fit null model
       ## source("/home/zhanxw/test.run/LinkageAnalysis/R/anova_test.R")
       if (is.null(null.model)) {
+        assign("last.warning", NULL, envir = baseenv())
         null.model <- anova_test(data, input$bin, test, silent, fns$log_file, tail, fit.null = TRUE)$null.model
-        if (exists("last.warning", envir = baseenv())){
+        if (exists("last.warning", envir = baseenv()) && !is.null(last.warning)){
           report("w", "Null cannot be fitted!!", fns$log_file)
           null.model.ok <- FALSE
+        } else {
+          null.model.ok <- TRUE
         }
       }
-      
+
       # test for combinatory effect
       for (type in c("recessive", "additive", "dominant", "inhibitory")) {
         if (type == "recessive") {
@@ -113,8 +129,11 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
         }
         if (!null.model.ok)  {
           pval  <- 1
+          # cat("null.ok = ", null.model.ok, "\n")
+          ## cat('pval = ', pval , "\n")
         } else {
           pval <- anova_test(data, input$bin, test, silent, fns$log_file, tail, null.model = null.model)$pvalue
+          ## cat('pval = ', pval , "\n")
           sig[[type]][i, j] <- pval
           sig[[type]][j, i] <- sig[[type]][i, j]
         }
@@ -123,7 +142,7 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
       # test for synthetic lethality
       sig[["lethal"]][i, j] <- double_lethal(data, input, i, j, n_trial)
       sig[["lethal"]][j, i] <- sig[["lethal"]][i, j]
-      
+
     } ## end loop j
   } ## end loop i
 

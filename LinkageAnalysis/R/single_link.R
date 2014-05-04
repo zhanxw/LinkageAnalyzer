@@ -1,3 +1,25 @@
+if (FALSE) {
+    main_file <- "/home/zhanxw/test.run/perm/Amber.1/td_rsfv_bga.20140427/R0071_td_rsfv_bga_main_norm_continuous.csv"
+    G2_file <- "/home/zhanxw/test.run/perm/Amber.1/td_rsfv_bga.20140427/R0071_G2dam.csv"
+    main_file2 <- "/home/zhanxw/test.run/perm/Amber.2/td_rsfv_bga.20140427/R0071_td_rsfv_bga_main_norm_continuous.csv"
+    G2_file2 <- "/home/zhanxw/test.run/perm/Amber.2/td_rsfv_bga.20140427/R0071_G2dam.csv"
+    output = "."
+    test = "wG2"
+    detect = "never"
+    silent = F
+    tail = "decreasing"
+    prefix = ""
+    n_trail = 10 # 1e5
+    plot.it = FALSE
+    transform.pheno = NULL
+    library(mclust)
+    library(lme4)
+    for (i in list.files("/home/zhanxw/test.run/LinkageAnalysis/R", pattern = ".*.R$")) {
+        source(i)
+    }
+    ret <- single_link(main_file, G2_file, output, test, detect, silent, plot.it = F)
+    ret2 <- single_link(main_file2, G2_file2, output, test, detect, silent, plot.it = F)
+}
 single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2",
                         detect = "never", silent = T, tail = "decreasing",
                         prefix = "", n_trial = 1e+05, plot.it = TRUE,
@@ -9,17 +31,17 @@ single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2"
     report("e", "Unrecognized option for tail!", fns$log_file)
   }
 
-  # debug
-  if (TRUE) {
-    
-      save(list = ls(), file = "single_link.Rdata")
-  }
-  if (FALSE) {
-    source("/home/zhanxw/test.run/LinkageAnalysis/R/distrib_plot.R")
-    source("/home/zhanxw/test.run/LinkageAnalysis/R/TDT.R")
-    source("/home/zhanxw/test.run/LinkageAnalysis/R/anova_test.R")
-      load("~/test.run/perm/Amber.1/td_rsfv_bga.20140427/single_link.Rdata", verbose = T)
-  }
+  ## # debug
+  ## if (TRUE) {
+
+  ##     save(list = ls(), file = "single_link.Rdata")
+  ## }
+  ## if (FALSE) {
+  ##   source("/home/zhanxw/test.run/LinkageAnalysis/R/distrib_plot.R")
+  ##   source("/home/zhanxw/test.run/LinkageAnalysis/R/TDT.R")
+  ##   source("/home/zhanxw/test.run/LinkageAnalysis/R/anova_test.R")
+  ##     load("~/test.run/perm/Amber.1/td_rsfv_bga.20140427/single_link.Rdata", verbose = T)
+  ## }
 
   # read data
   raw_data <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)
@@ -46,10 +68,13 @@ single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2"
 
   for (i in 1:dim(genes)[1]) {
     # get genotype in character string
-    ## deubg
-    ## print(paste("---", genes$Gene[i], " [", i, "] ", "---"))
+    ## ## debug
+    ## if (i != 2) {
+    ##   next
+    ## }
     if (silent == F) {
-      report("m", paste("---", genes$Gene[i], "---"), fns$log_file)
+      msg <- paste("---", genes$Gene[i], "[", i, "of", dim(genes)[1], "]", "---")
+      report("m", msg, fns$log_file)
     }
     gt <- unlist(genotype[i, ])
     if (sum(!is.na(convert_gt(gt, "additive"))) < 10) {
@@ -127,7 +152,8 @@ single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2"
 
   # save results
   if (silent == F) {
-    report("m", "Save results in CSV format", fns$log_file)
+    msg <- sprintf("Save results in CSV format - %s", fns$log_file)
+    report("m", msg, fns$log_file)
   }
   results <- cbind(genes[, c("Gene", "chr", "pos", "REF", "HET", "VAR", "lethal")],
                    sig_gene, genetics)
@@ -139,7 +165,7 @@ single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2"
 
   end.time <- Sys.time()
   diff.time <- difftime(end.time, start.time, units = "secs")
-  msg <- (sprintf("double_link() finished in %.3f seconds - [main=%s;G2=%s;test=%s;detect=%s;tail=%s]",
+  msg <- (sprintf("single_link() finished in %.3f seconds - [main=%s;G2=%s;test=%s;detect=%s;tail=%s]",
                   diff.time,
                   main_file,
                   G2_file,
@@ -149,4 +175,5 @@ single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2"
   print(msg)
   report("m", msg, fns$log_file)
 
+  list(result = results)
 }

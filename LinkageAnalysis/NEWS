@@ -1,5 +1,7 @@
+0.9.4
+* fix typos, also make the ANOVA error more specific
 0.9.3
-* fix a corner case in anova_test where both error and warning occur in glmer()
+* fix a corner case in anova_test where both error and warning both occur in glmer()
 0.9.2
 * add timing for single/double link
 0.9.1
