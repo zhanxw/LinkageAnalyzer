@@ -73,7 +73,7 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
       data <- data.frame(pt = input$phenotype$phenotype, sex = input$phenotype$sex,
                          mother = input$phenotype$mother, gt1 = convert_gt(gt1, "additive"),
                          gt2 = convert_gt(gt2, "additive"))
-      hasMissingGeno <- any(is.na(data$gt1) | !is.na(data$gt2))
+      hasMissingGeno <- any(is.na(data$gt1) | is.na(data$gt2))
       if (hasMissingGeno) {
         ## impute missing genotype to its mean
         naIdx <- is.na(data$gt1)

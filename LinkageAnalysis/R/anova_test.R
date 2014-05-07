@@ -113,8 +113,8 @@ anova_test <- function(data, bin, test, silent = T, log_file, tail,
     }
 
     # trust fisher or glmer?
-    if (convert_tail(tmp$direction, fisher$p.val, tail)/convert_tail(tmp$direction,
-                                                                     tmp$pvalue, tail) > 100) {
+    if (convert_tail(tmp$direction, fisher$p.val, tail)/
+        convert_tail(tmp$direction, tmp$pvalue, tail) > 100) {
       report("m", "Fisher's exact test is used as a fallback", log_file)
       tmp$pvalue <- fisher$p.val
     }

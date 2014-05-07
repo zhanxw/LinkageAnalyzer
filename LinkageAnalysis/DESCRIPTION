@@ -10,6 +10,6 @@ Maintainer: Tao Wang <tao.wang@utsouthwestern.edu>, Xiaowei Zhan
 Depends: R (>= 2.15.0), lme4, gplots, mclust, Rcpp
 Description: NA
 License: GPL-2
-Packaged: 2014-05-04 07:44:15 UTC; zhanxw
+Packaged: 2014-05-07 06:08:47 UTC; zhanxw
 Imports: Rcpp (>= 0.11.1)
 LinkingTo: Rcpp
