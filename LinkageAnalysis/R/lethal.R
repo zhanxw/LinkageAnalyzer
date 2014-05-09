@@ -137,7 +137,10 @@ double_lethal <- function(data, input, i, j, n_trial) {
   mean <- sum(numG3 * prob)
   var <- sum(numG3 * prob * (1-prob))
   pval.approx <- pnorm( (obs - mean) /sqrt(var) )
-  if (pval.approx > 0.1) {
+  if (is.na(pval.approx)) {
+      #e.g. obs = mean = var = 0,
+      pval <- 1
+  } else if (pval.approx > 0.1) {
     pval <- doubleSample(prob, numG3, obs, 1000)
     if (pval < 1e-4) {
       ## this should rarely happen

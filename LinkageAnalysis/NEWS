@@ -1,3 +1,5 @@
+0.9.5
+* fix R0530 bugs, where approximate pval = NA can be fixed
 0.9.4
 * fix typos, also make the ANOVA error more specific
 0.9.3
