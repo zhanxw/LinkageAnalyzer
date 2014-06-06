@@ -2,14 +2,12 @@ Package: LinkageAnalysis
 Type: Package
 Title: Identification of genotypes with statistically significant
         associations with phenotypes and lethality
-Version: 0.9.5
+Version: 1.0.0
 Date: 2014-04-24
 Author: Tao Wang, Xiaowei Zhan, Yang Xie
 Maintainer: Tao Wang <tao.wang@utsouthwestern.edu>, Xiaowei Zhan
  <zhanxw@gmail.com>
-Depends: R (>= 2.15.0), lme4, gplots, mclust, Rcpp
+Depends: R (>= 2.15.0), lme4, gplots, mclust, plyr
 Description: NA
 License: GPL-2
-Packaged: 2014-05-09 05:03:33 UTC; zhanxw
-Imports: Rcpp (>= 0.11.1)
-LinkingTo: Rcpp
+Packaged: 2014-06-06 06:50:06 UTC; zhanxw

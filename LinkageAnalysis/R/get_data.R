@@ -1,5 +1,26 @@
-# this function reads the main data and the optional G2 genotype data if G2
-# genotype data, the returned list will have an additional element
+#' this function reads the main data and the optional G2 genotype data if G2
+#' genotype data, the returned list will have an additional element
+#' @return a list containing:
+#'   genes: data.frame (sorted by chromsomal positions)
+#'     Gene: gene names, character vector
+#'     Coordination: character vector, e.g. "1_123"
+#'     chr: character vector
+#'     pos: numeric vector
+#'   phenotype: a list
+#'     mother: factor vector, mother names
+#'     sex: 0 = female, 1 = male, 0.5 = unknown
+#'     phenotype: numeric vector
+#'   genotype: character matrix with rowname = gene, colname = sampleName, e.g. "REF"
+#'   bin: logical
+#'   unconverted: list (may be NULL)
+#'     phenotype: original phenotype
+#'     break_point: break point
+#'   G2: character matrix. After fixing genotypes, it's 'similar to G2 file
+#'     Gene: char vec
+#'     Coordination: char vec
+#'     Amplicon: char vec
+#'   n:  # of genes
+#'   obs:  # of mice
 get_data <- function(main = "", G2 = "", log_file, detect, transform.pheno = NULL) {
     data <- get_main(main, log_file, detect, transform.pheno)
     if (G2 != "") {
@@ -187,8 +208,25 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
                 bin <- TRUE
                 unconverted$phenotype <- pheno$phenotype  # store in unconverted
                 unconverted$break_point <- break_point
-                pheno$phenotype <- factor(pheno$phenotype < break_point, levels = c(TRUE,
-                                                                             FALSE), labels = c("AFFECTED", "UNAFFECTED"))
+                pheno$phenotype <- factor(pheno$phenotype < break_point,
+                                          levels = c(TRUE, FALSE),
+                                          labels = c("AFFECTED", "UNAFFECTED"))
+                ## if very unbalanced cutoff has chosen, gracefully quit
+                ratio <- sum(pheno$phenotype == "AFFECTED") / length(pheno$phenotype)
+                if (ratio < 0.2 || ratio > 0.8) {
+                    msg <- sprintf("Dichotomizing phentoypes failed (affected ratio = %f)", ratio)
+                    report("m", msg, log_file)
+                    status.file.name <- paste(dirname(log_file),
+                                              "R_jobs_complete_with_no_output.txt",
+                                              sep = .Platform$file.sep)
+                    cat(date(), file = status.file.name)
+                    cat("\t", file = status.file.name, append = TRUE)
+                    cat(msg, file = status.file.name, append = TRUE)
+                    cat("\n", file = status.file.name, append = TRUE)
+                    msg <- sprintf("Log file [ %s ] created.", status.file.name)
+                    report("m", msg, log_file)
+                    q('no')
+                }
             }
 
             if (mclust3$bic > mclust1$bic && mclust3$bic > mclust2$bic) {
@@ -215,4 +253,21 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
     # return the three tables
     return(list(genes = gene, phenotype = pheno, genotype = genotype, bin = bin,
                 unconverted = unconverted))
+}
+
+get_vcf_data <- function(vcf, ped, log_file, detect, transform.pheno = NULL) {
+    ## read peds
+
+    ## read vcfs
+
+
+    data <- get_vcf_main(main, log_file, detect, transform.pheno)
+    if (G2 != "") {
+        data <- c(data, list(G2 = get_G2(G2, log_file)))
+    }
+
+    data$n <- dim(data$genes)[1]  # number of genes
+    data$obs <- dim(data$genotype)[2]  # number of mice
+
+    return(data)
 }

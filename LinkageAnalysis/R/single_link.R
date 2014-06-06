@@ -17,10 +17,12 @@ if (FALSE) {
     for (i in list.files("/home/zhanxw/test.run/LinkageAnalysis/R", pattern = ".*.R$")) {
         source(i)
     }
-    ret <- single_link(main_file, G2_file, output, test, detect, silent, plot.it = F)
-    ret2 <- single_link(main_file2, G2_file2, output, test, detect, silent, plot.it = F)
+    ret <- single_link(main_file, G2_file, output, test, detect, silent, plot.it = TRUE)
+    ret2 <- single_link(main_file2, G2_file2, output, test, detect, silent, plot.it = TRUE)
 }
-single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2",
+
+single_link <- function(main_file = "", G2_file = "",
+                        output = ".", test = "wG2",
                         detect = "never", silent = T, tail = "decreasing",
                         prefix = "", n_trial = 1e+05, plot.it = TRUE,
                         transform.pheno = NULL) {
@@ -30,18 +32,6 @@ single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2"
   if (!tail %in% c("increasing", "decreasing", "both")) {
     report("e", "Unrecognized option for tail!", fns$log_file)
   }
-
-  ## # debug
-  ## if (TRUE) {
-
-  ##     save(list = ls(), file = "single_link.Rdata")
-  ## }
-  ## if (FALSE) {
-  ##   source("/home/zhanxw/test.run/LinkageAnalysis/R/distrib_plot.R")
-  ##   source("/home/zhanxw/test.run/LinkageAnalysis/R/TDT.R")
-  ##   source("/home/zhanxw/test.run/LinkageAnalysis/R/anova_test.R")
-  ##     load("~/test.run/perm/Amber.1/td_rsfv_bga.20140427/single_link.Rdata", verbose = T)
-  ## }
 
   # read data
   raw_data <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)
@@ -70,6 +60,11 @@ single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2"
     # get genotype in character string
     ## ## debug
     ## if (i != 2) {
+    ##   next
+    ## }
+    ## if (genes$Gene[i] == "Kndc1") {
+    ##   browser()
+    ## } else {
     ##   next
     ## }
     if (silent == F) {
@@ -116,6 +111,7 @@ single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2"
 
   if (plot.it) {
     dev.off()  #close the distribution plot
+    cat("Distribution plot saved at: ", fns$distrib_file, "\n")
     ## par(mfrow = c(1, 1))
   }
 
@@ -142,6 +138,8 @@ single_link <- function(main_file = "", G2_file = "", output = ".", test = "wG2"
     diagnostic(phenotype, bin, fns$log_file, raw_data$unconverted)  # draw diagnostic plot
     # manhattan plot
     for (type in c("additive", "recessive", "dominant", "TDT")) {
+      print(head(genes))
+      ## browser()
       mht(genes, sig_gene, type, fns$log_file, test, bin, effective,
           genotype)
     }

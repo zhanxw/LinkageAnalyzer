@@ -2,113 +2,113 @@
 # representation according to type FAILED, FALSE, and other types will be
 # converted to NA
 convert_gt <- function(gt, type) {
-    if (type == "additive") {
-        gt2num <- c(0, 1, 2)
-    }
-    if (type == "recessive") {
-        gt2num <- c(1, 1, 2)
-    }
-    if (type == "dominant") {
-        gt2num <- c(0, 1, 1)
-    }
+  if (type == "additive") {
+    gt2num <- c(0, 1, 2)
+  } else if (type == "recessive") {
+    gt2num <- c(1, 1, 2)
+  } else if (type == "dominant") {
+    gt2num <- c(0, 1, 1)
+  } else {
+    cat("Unrecognized type: ", type, "\n")
+    stop("convert_gt() failed")
+  }
 
-    gt[gt == "REF"] <- gt2num[1]
-    gt[gt == "HET"] <- gt2num[2]
-    gt[gt == "VAR"] <- gt2num[3]
-    gt[!gt %in% c("0", "1", "2")] <- NA
-    gt <- as.numeric(gt)
+  gt[gt == "REF"] <- gt2num[1]
+  gt[gt == "HET"] <- gt2num[2]
+  gt[gt == "VAR"] <- gt2num[3]
+  gt[!gt %in% c("0", "1", "2")] <- NA
+  gt <- as.numeric(gt)
 
-    return(gt)
+  return(gt)
 }
 
 # this function converts a two-tailed p value to a one-tailed p value
 convert_tail <- function(direction, pval, tail) {
-    # expected direction
-    if (tail == "decreasing") {
-        if (direction == T) {
-            pval <- 1 - pval/2
-        } else {
-            pval <- pval/2
-        }
-        return(pval)
-    } else if (tail == "increasing") {
-        # unexpected direction
-        if (direction == F) {
-            pval <- 1 - pval/2
-        } else {
-            pval <- pval/2
-        }
-        return(pval)
+  # expected direction
+  if (tail == "decreasing") {
+    if (direction == T) {
+      pval <- 1 - pval/2
     } else {
-        return(pval)
+      pval <- pval/2
     }
+    return(pval)
+  } else if (tail == "increasing") {
+    # unexpected direction
+    if (direction == F) {
+      pval <- 1 - pval/2
+    } else {
+      pval <- pval/2
+    }
+    return(pval)
+  } else {
+    return(pval)
+  }
 }
 
 # this function converts the character strings to upper case in one data frame
 convert_upper <- function(x) {
-    if (typeof(x) == "character")
-        {
-            x <- data.frame(data = x)
-        }  # if x is a vector, convert to dataframe
-    for (i in 1:dim(x)[2]) {
-        x[, i] <- toupper(x[, i])
-    }
-    return(x)
+  if (typeof(x) == "character")
+    {
+      x <- data.frame(data = x)
+    }  # if x is a vector, convert to dataframe
+  for (i in 1:dim(x)[2]) {
+    x[, i] <- toupper(x[, i])
+  }
+  return(x)
 }
 
 # this function generates messages, warnings and errors (and stop the program)
 report <- function(type, word, log_file, eol = TRUE) {
-    # whether to print return sign
-    if (eol == TRUE) {
-        suffix <- "\r\n"
-    } else {
-        suffix <- ""
-    }
+  # whether to print return sign
+  if (eol == TRUE) {
+    suffix <- "\r\n"
+  } else {
+    suffix <- ""
+  }
 
-    # message
-    if (type == "m") {
-        cat(paste(word, suffix), file = log_file, append = TRUE)
-        cat(paste(word, suffix))
-    } else if (type == "w") {
-        # warnings
-        cat(paste(word, suffix), file = log_file, append = TRUE)
-        warning(word, call. = FALSE)
-    } else if (type == "e") {
-        # errors
-        cat(paste(word, suffix), file = log_file, append = TRUE)
-        stop(word, call. = FALSE)
-    }
+  # message
+  if (type == "m") {
+    cat(paste(word, suffix), file = log_file, append = TRUE)
+    cat(paste(word, suffix))
+  } else if (type == "w") {
+    # warnings
+    cat(paste(word, suffix), file = log_file, append = TRUE)
+    warning(word, call. = FALSE)
+  } else if (type == "e") {
+    # errors
+    cat(paste(word, suffix), file = log_file, append = TRUE)
+    stop(word, call. = FALSE)
+  }
 }
 
 # this function is used to generate the output file names in the output folder
 filename <- function(output, prefix) {
-    dir.create(output, showWarnings = FALSE)
+  dir.create(output, showWarnings = FALSE)
 
-    if (prefix != "")
-        {
-            prefix <- paste(prefix, "_", sep = "")
-        }  # if a prefix is given
+  if (prefix != "") {
+    prefix <- paste(prefix, "_", sep = "")
+  }  # if a prefix is given
 
-    log_file <- file.path(output, paste(prefix, "log.txt", sep = ""))
-    unlink(log_file)
+  log_file <- file.path(output, paste(prefix, "log.txt", sep = ""))
+  unlink(log_file)
 
-    pdf_file <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
-    csv_file <- file.path(output, paste(prefix, "full_results.csv", sep = ""))
-    distrib_file <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = ""))
-    results_file <- file.path(output, paste("results.RData", sep = ""))
+  pdf_file <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
+  csv_file <- file.path(output, paste(prefix, "full_results.csv", sep = ""))
+  distrib_file <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = ""))
+  results_file <- file.path(output, paste("results.RData", sep = ""))
 
-    return(list(log_file = log_file, pdf_file = pdf_file, csv_file = csv_file, distrib_file = distrib_file,
-                results_file = results_file))
+  return(list(log_file = log_file, pdf_file = pdf_file, csv_file = csv_file, distrib_file = distrib_file,
+              results_file = results_file))
 }
 
 # this function shows small numbers (p values) in scientific mode
 pretty_num <- function(x) {
-    if (x == 0) {
-        return(0)
-    }
-    if (x > 0.001) {
-        return(round(x, digits = 3))
-    }
-    d <- floor(-log10(x))
-    return(round(x * 10^d, digits = 3)/10^d)
+  if (x == 0) {
+    return(0)
+  }
+  if (x > 0.001) {
+    return(round(x, digits = 3))
+  }
+  d <- floor(-log10(x))
+  return(round(x * 10^d, digits = 3)/10^d)
 }

@@ -1,3 +1,22 @@
+if (FALSE) {
+  ## library(LinkageAnalysis)
+  fn <- list.files("~/test.run/LinkageAnalysis/R/", pattern = ".*R$")
+  fn <- paste0("~/test.run/LinkageAnalysis/R/", fn)
+  for (f in fn) {
+    source(f)
+  }
+
+  setwd('~/test.run')
+  main_file = "~/test.run/Rpackage.FACS_screen_B1b_cells.R0511.test1/R0511_main_norm_continuous.csv"
+  G2_file = "~/test.run/Rpackage.FACS_screen_B1b_cells.R0511.test1/R0511_G2dam.csv"
+  output = "tmp"
+  test = "woG2"
+  silent = FALSE
+  prefix = "tmp.prefix"
+  double_link(main_file, G2_file, output, test, silent, prefix = prefix)
+
+}
+
 # this function tests the combinatory effect of two genes
 double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
                         detect = "never",
@@ -6,6 +25,8 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
                         transform.pheno = NULL) {
   ## ##debug
   ## save(list = ls(), file = "double_link.Rdata")
+  ## load("0512/nlrp3_inflammasome.3971/double_link.Rdata", verbose = TRUE)
+  ## setwd("~/test.run/0512/nlrp3_inflammasome.3971")
   ## q('no')
   ## if (FALSE) {
   ##   load("/home/zhanxw/test.run/perm/Amber.1/td_rsfv_bga.20140427/double_link.Rdata", verbose = TRUE)
@@ -53,8 +74,8 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
     gt1 <- unlist(input$genotype[i, ])  # genotype of the first gene
 
     for (j in (i + 1):input$n) {
-      ## debug
-      ## if (i != 1 || j != 4) {
+      ## if (i > 10 || j > 10) {
+      ##   cat ("DBG skip\n")
       ##   next
       ## }
       print(sprintf("%s - %s x %s - (%d, %d, %d) - %.3f%%",
@@ -96,6 +117,7 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
       # fit null model
       ## source("/home/zhanxw/test.run/LinkageAnalysis/R/anova_test.R")
       if (is.null(null.model)) {
+        cat("fit null model\n")
         assign("last.warning", NULL, envir = baseenv())
         null.model <- anova_test(data, input$bin, test, silent, fns$log_file, tail, fit.null = TRUE)$null.model
         if (exists("last.warning", envir = baseenv()) && !is.null(last.warning)){
@@ -104,20 +126,18 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
         } else {
           null.model.ok <- TRUE
         }
+        cat("fit null model complete\n")
       }
 
       # test for combinatory effect
       for (type in c("recessive", "additive", "dominant", "inhibitory")) {
         if (type == "recessive") {
           data$gt <- (data$gt1 + data$gt2 >= 4) * 1
-        }  # gt is the interaction term
-        if (type == "additive") {
+        }  else if (type == "additive") {
           data$gt <- data$gt1 * data$gt2
-        }
-        if (type == "dominant") {
+        } else if (type == "dominant") {
           data$gt <- (data$gt1 * data$gt2 >= 1) * 1
-        }
-        if (type == "inhibitory") {
+        } else if (type == "inhibitory") {
           data$gt <- data$gt1 * (data$gt2 == 0) + data$gt2 * (data$gt1 == 0)
         }
         if (length(unique(data$gt)) == 1) {
@@ -142,7 +162,6 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
       # test for synthetic lethality
       sig[["lethal"]][i, j] <- double_lethal(data, input, i, j, n_trial)
       sig[["lethal"]][j, i] <- sig[["lethal"]][i, j]
-
     } ## end loop j
   } ## end loop i
 
@@ -180,6 +199,17 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
     if (silent == FALSE) {
       report("m", "Drawing distribution plots", fns$log_file)
     }
+    ## if (TRUE) {
+    ##   wd <- getwd()
+    ##   cat("DBG in ", wd, "\n")
+    ##   save(list = ls(), file = "tmp.Rdata")
+
+    ##   load("tmp.Rdata" ,verbose = TRUE)
+    ##   cutoff_pair <- 0.9
+    ##   sig[["recessive"]][1,2] <- 1e-14
+    ##   sig[["dominant"]][1,2] <- 1e-14
+    ##   sig[["inhibitory"]][1,2] <- 1e-14
+    ## }
     pdf(file = fns$distrib_file)
     par(mfrow = c(3, 2))
 
@@ -187,15 +217,23 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
       for (j in (i + 1):input$n) {
         # whether to draw the distribution plot, which types pass the cutoff
         flag <- ""
+        type.min <- NULL
+        p.min <- NULL
         for (type in c("recessive", "additive", "dominant", "inhibitory", "lethal")) {
-          if (sig[[type]][i, j] < cutoff_pair && SignifOfSingle[i, type] >
-              cutoff_single && SignifOfSingle[j, type] > cutoff_single) {
+          if (sig[[type]][i, j] < cutoff_pair &&
+              SignifOfSingle[i, type] > cutoff_single &&
+              SignifOfSingle[j, type] > cutoff_single) {
             flag <- paste(flag, " ", substr(type, 1, 2), " (", pretty_num(sig[[type]][i, j]), ")", sep = "")
+          }
+          if (is.null(type.min) || p.min > sig[[type]][i, j]) {
+            type.min <- type
+            p.min <- sig[[type]][i, j]
           }
         }
         if (flag == "") {
           next
         }
+        ## cat ("DBG flag = ", flag, "type.min", type.min, "\n")
 
         gt1 <- unlist(input$genotype[i, ])  # genotype of the first gene
         gt2 <- unlist(input$genotype[j, ])  # genotype of the second gene
@@ -204,10 +242,20 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
                            gt2 = convert_gt(gt2, "additive"))
         data <- data[(!is.na(data$gt1)) & (!is.na(data$gt2)), ]
 
-        double_distrib(flag, data, input, type, input$genes[c(i, j), ])  # distribution of genotype vs. phenotype
+        # distribution of genotype vs. phenotype
+        ## cat("DBG: draw double_distrib for type ", type, "\n")
+
+        double_distrib(flag, data, input, type.min, input$genes[c(i, j), ])
       }
     }
 
+    ## if (FALSE) {
+    ##   pdf(file = fns$distrib_file)
+    ##   par(mfrow = c(3, 2))
+    ##   double_distrib(flag, data, input, type, input$genes[c(i, j), ])  # distribution of genotype vs. phenotype
+    ##   plot(1:5, 1:5, type = "n", xlab = "", ylab = "", xaxt = "n", yaxt = "n", bty = "n")
+    ##   dev.off()
+    ## }
     plot(1:5, 1:5, type = "n", xlab = "", ylab = "", xaxt = "n", yaxt = "n", bty = "n")
     dev.off()
     ## par(mfrow = c(1, 1))

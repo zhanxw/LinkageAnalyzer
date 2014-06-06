@@ -24,10 +24,39 @@ single_sample <- function(mother_gt, n_G3, n_trial) {
 # this function tests whether each gene is a homozygous lethal with G2 data the
 # H0 is a gene is not homozygous lethal
 single_lethal <- function(genotype, genes, phenotype, G2, n_trial) {
+  if (FALSE) {
+    wd <- getwd()
+    save(file = "single_lethal.Rdata", list = ls())
+  }
+
+  ## g2Unknown can be ungenotyped or g2 = VAR
+  getP <- function(nvarFromHet, nFromHet, nvarFromUnknown, nFromUnknown) {
+    ##dbinom(nvarFromHet, nFromHet, 0.25) * getP.g2unknown(nvarFromUnknown, nFromUnknown)
+    dbinom(nvarFromHet, nFromHet, 0.25) * dbinom(nvarFromUnknown, nFromUnknown, 0.125)
+  }
+
+  getPval <- function(nvarFromHet, nFromHet, nvarFromUnknown, nFromUnknown) {
+    nvar <- nvarFromHet + nvarFromUnknown
+    p <- 0.
+    for (i in seq(0, nvar)) {
+      j <- seq(0, i)
+      tmp <- getP(j, nFromHet, i - j , nFromUnknown)
+      ## print(i)
+      ## print(j)
+      ## print(tmp)
+      p <- p + sum(tmp)
+    }
+    p
+  }
+
   lethal <- rep(1, dim(genotype)[1])
   mothers <- as.vector(unique(phenotype$mother))
 
   for (i in 1:dim(genotype)[1]) {
+    ## if (TRUE) {
+    ##   cat("DBG:", "i = ", i, " ", genes$Gene[i], "\n")
+    ## }
+
     # skip genes with too many invalid values or on chrX
     gt <- unlist(genotype[i, ])
     gt <- convert_gt(gt, "recessive")
@@ -35,26 +64,82 @@ single_lethal <- function(genotype, genes, phenotype, G2, n_trial) {
       next
     }
 
-    trials <- rep(0, n_trial)  # the total number of G3 VAR mice in all trials
+    # aggregate counts from mother and its offsprings
+    nVarFromHet <- 0
+    nFromHet <- 0
+    nVarFromUnknown <- 0
+    nFromUnknown <- 0
 
-    # random sample for each mother and aggregate
     for (mother in mothers) {
-      mother_gt <- G2[paste(genes$Gene[i], genes$Coord[i]), mother]
+      mother_gt <- G2[paste(genes$Gene[i], genes$Coordination[i]), mother]
       # in case G2 genotype is unknown, if any child is VAR, the mother is definitely
       # HET
       if (any(gt[phenotype$mother == mother & !is.na(gt)] == 2)) {
         mother_gt <- "HET"
       }
-      mother_G3_VAR <- single_sample(mother_gt, sum(phenotype$mother == mother &
-                                                    !is.na(gt)), n_trial)
-      trials <- trials + mother_G3_VAR
+
+      if (is.null(mother_gt)) {
+        nVarFromUnknown <- nVarFromUnknown + length(gt[phenotype$mother == mother & (gt==2)])
+        nFromUnknown <- nFromUnknown + length(gt[phenotype$mother == mother & !is.na(gt)])
+      } else if (mother_gt == "REF") {
+        ## do nothing
+      } else if (mother_gt == "HET") {
+        nVarFromHet <- nVarFromHet + length(gt[phenotype$mother == mother & (gt==2)])
+        nFromHet <- nFromHet + length(gt[phenotype$mother == mother & !is.na(gt)])
+      } else if (mother_gt == "VAR") {
+        ## should not happen
+      } else {
+        ## record unknown types
+        cat("unexpected mother_gt = ", mother_gt, "\n")
+        nVarFromUnknown <- nVarFromUnknown + length(gt[phenotype$mother == mother & (gt==2)])
+        nFromUnknown <- nFromUnknown + length(gt[phenotype$mother == mother & !is.na(gt)])
+      }
+      ## cat("DBG", " mother = ", mother, " mother_gt = ", mother_gt, "\n")
+      ## print(table(gt[phenotype$mother == mother], exclude =  NULL))
     }
-
-    lethal[i] <- sum(trials <= sum(gt[!is.na(gt)] == 2))/n_trial
+    ## print(c(nVarFromHet, nFromHet, nVarFromUnknown, nFromUnknown))
+    lethal[i] <- getPval(nVarFromHet, nFromHet, nVarFromUnknown, nFromUnknown)
   }
-
   return(lethal)
 }
+
+## ##original version
+## single_lethal <- function(genotype, genes, phenotype, G2, n_trial) {
+##   lethal <- rep(1, dim(genotype)[1])
+##   mothers <- as.vector(unique(phenotype$mother))
+
+##   for (i in 1:dim(genotype)[1]) {
+##     # skip genes with too many invalid values or on chrX
+##     gt <- unlist(genotype[i, ])
+##     gt <- convert_gt(gt, "recessive")
+##     if (sum(!is.na(gt)) < 3 || genes$chr[i] == "X") {
+##       next
+##     }
+
+##     trials <- rep(0, n_trial)  # the total number of G3 VAR mice in all trials
+
+##     # random sample for each mother and aggregate
+##     for (mother in mothers) {
+##       mother_gt <- G2[paste(genes$Gene[i], genes$Coordination[i]), mother]
+##       # in case G2 genotype is unknown, if any child is VAR, the mother is definitely
+##       # HET
+##       if (any(gt[phenotype$mother == mother & !is.na(gt)] == 2)) {
+##         mother_gt <- "HET"
+##       }
+##       mother_G3_VAR <- single_sample(mother_gt,
+##                                      sum(phenotype$mother == mother & !is.na(gt)),
+##                                      n_trial)
+##       trials <- trials + mother_G3_VAR
+##       ## cat("mother = ", mother, " ", mother_gt, "\n")
+##       ## cat("n = ", length(gt[phenotype$mother == mother]), " nvar = ", sum(gt[phenotype$mother == mother] == 2), "\n")
+##       ## print(table(gt[phenotype$mother == mother]))
+##     }
+
+##     lethal[i] <- sum(trials <= sum(gt[!is.na(gt)] == 2))/n_trial
+##   }
+
+##   return(lethal)
+## }
 
 # this function runs random sampling to find the number of G3 mice with desired
 # genotype
@@ -96,6 +181,52 @@ double_sample <- function(mother_gt1, mother_gt2, n_G3, n_trial) {
   return(prob)
 }
 
+## calculate P(sum(X_i) <= obs)
+## when X_i ~ binomial(size[i], p[i])
+calculate.prob <- function (obs, size, p) {
+  N <- length (obs)
+  ret <- list ()
+  n.obs <- sum (obs)
+  for (i in 1:N) {
+    ret [[i]] <- dbinom (0:n.obs, size = size [i], p = p [i])
+   }
+
+  combine.prob <- function (v1, v2) {
+    stopifnot (is.numeric (v1))
+    stopifnot (is.numeric (v2))
+    n <- length (v1)
+    #print (v1)
+    #print (v2)
+    stopifnot (n == length (v2))
+    ret <- rep (NA, n)
+    for (i in 1:n) {
+      ret [i] <- sum (v1 [1:i] * rev (v2 [1:i]))
+     }
+    ret
+   }
+  ## combine.prob (ret [[1]], ret [[2]])
+  reduce.prob <- function (l) {
+    stopifnot (is.list (l))
+    n <- length (l)
+    if (n < 2) {
+      return (l [[1]])
+     }
+    v <- NULL
+    for (i in 1: (n-1)) {
+      if (i == 1) {
+        v <- combine.prob (ret [[i]], ret [[i + 1]])
+       } else {
+        v <- combine.prob (v, ret [[i+1]])
+       }
+      #    cat (i, " : ")
+      #    print (v)
+     }
+    return (v)
+   }
+  tmp <- reduce.prob (ret)
+  sum (tmp)
+}
+
 # this function tests for synthetic lethality of two genes (VAR,HET; HET,VAR; and
 # VAR,VAR)
 double_lethal <- function(data, input, i, j, n_trial) {
@@ -104,12 +235,24 @@ double_lethal <- function(data, input, i, j, n_trial) {
     return(1)
   }  # don't handle gene on chrX for the moment
 
+  if (FALSE)  {
+    cat ("DEBUG\n")
+    wd <- getwd()
+    fn <- "double_lethal.Rdata"
+    save(list = ls(), file = fn)
+    cat ( "double_lethal: data saved, ")
+    cat (normalizePath(fn))
+    cat ("\n")
+  }
+  if (FALSE) {
+    load("/home/zhanxw/test.run/Rpackage.FACS_screen_B1b_cells.R0511.test1/double_lethal.Rdata")
+  }
   ## MonteCarlo <- matrix(data = 0, nrow = n_trial, ncol = length(mothers))
   ## colnames(MonteCarlo) <- mothers
   prob <- rep(0, length(mothers))
-  names(prob) <- mothers
   numG3 <- rep(0, length(mothers))
-  names(numG3) <- mothers
+  numObs <- rep(0, length(mothers))
+  names(prob) <- names(numG3) <- names(numObs) <- mothers
 
   for (mother in mothers) {
     mother_gt1 <- input$G2[paste(input$genes$Gene[i], input$genes$Coordination[i]),
@@ -117,6 +260,9 @@ double_lethal <- function(data, input, i, j, n_trial) {
     mother_gt2 <- input$G2[paste(input$genes$Gene[j], input$genes$Coordination[j]),
                            mother]
     n_G3 <- sum(data$mother == mother)
+    # observfed HET/VAR, VAR/HET or VAR/VAR
+    tmp <- data[data$mother == mother, ]
+    obs <- sum((tmp$gt1 + tmp$gt2) >= 3)
 
     # in case G2 genotype is unknown, if any child is VAR, the mother is definitely
     # HET
@@ -130,25 +276,33 @@ double_lethal <- function(data, input, i, j, n_trial) {
     ## system.time(MonteCarlo[, mother] <- double_sample(mother_gt1, mother_gt2, n_G3, n_trial))
     prob[mother]  <- double_sample(mother_gt1, mother_gt2, n_G3, n_trial)
     numG3[mother] <- n_G3
+    numObs[mother] <- obs
   }
 
-  obs <- sum((data$gt1 + data$gt2) >= 3)
-  ## use a bit of adaptive
-  mean <- sum(numG3 * prob)
-  var <- sum(numG3 * prob * (1-prob))
-  pval.approx <- pnorm( (obs - mean) /sqrt(var) )
-  if (is.na(pval.approx)) {
-      #e.g. obs = mean = var = 0,
-      pval <- 1
-  } else if (pval.approx > 0.1) {
-    pval <- doubleSample(prob, numG3, obs, 1000)
-    if (pval < 1e-4) {
-      ## this should rarely happen
-      pval <- doubleSample(prob, numG3, obs, 1000000)
-    }
-  } else {
-    ## pval <- sum(apply(MonteCarlo, 1, sum) <= obs)/n_trial
-    pval <- doubleSample(prob, numG3, obs, 1000000)
-  }
+  ## collapsing
+  tmp <- data.frame(prob = prob, numG3 = numG3, numObs = numObs)
+  library(plyr)
+  tmp <- ddply(tmp, .(prob), function(x) {c(numG3 = sum(x$numG3), numObs = sum(x$numObs))})
+  tmp <- subset(tmp, prob != 0.0)
+  pval <- calculate.prob(obs = tmp$numObs, size = tmp$numG3, p = tmp$prob)
+
+  ## obs <- sum((data$gt1 + data$gt2) >= 3)
+  ## ## use a bit of adaptive
+  ## mean <- sum(numG3 * prob)
+  ## var <- sum(numG3 * prob * (1-prob))
+  ## pval.approx <- pnorm( (obs - mean) /sqrt(var) )
+  ## if (is.na(pval.approx)) {
+  ##   #e.g. obs = mean = var = 0,
+  ##   pval <- 1
+  ## } else if (pval.approx > 0.1) {
+  ##   pval <- doubleSample(prob, numG3, obs, 1000)
+  ##   if (pval < 1e-4) {
+  ##     ## this should rarely happen
+  ##     pval <- doubleSample(prob, numG3, obs, 1000000)
+  ##   }
+  ## } else {
+  ##   ## pval <- sum(apply(MonteCarlo, 1, sum) <= obs)/n_trial
+  ##   pval <- doubleSample(prob, numG3, obs, 1000000)
+  ## }
   return(pval)
 }

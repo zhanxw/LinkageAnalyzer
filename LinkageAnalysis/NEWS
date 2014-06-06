@@ -1,3 +1,16 @@
+1.0.0
+* generate R_jobs_complete_with_no_output.txt file when autoBinary failed (Issue 148)
+* draw light gray lines in Manhattan plot
+* draw genotype codings above scatter plots (double_plot)
+* calculate double_lethal using analytical form
+0.9.9
+* gracefully quit when autoBinary failed
+0.9.8
+* use analytical lethal pvalue
+0.9.7
+* use REML=FALSE to avoid enabling REML in lmer
+0.9.6
+* mark tested groups for double_link
 0.9.5
 * fix R0530 bugs, where approximate pval = NA can be fixed
 0.9.4
