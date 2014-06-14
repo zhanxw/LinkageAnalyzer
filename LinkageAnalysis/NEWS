@@ -1,3 +1,8 @@
+2.0.1
+* add some warning messages for meta.link
+* handle samples in PED but not in VCF
+2.0.0
+* meta.single.link will perform super pedigree single variant anaysis
 1.0.0
 * generate R_jobs_complete_with_no_output.txt file when autoBinary failed (Issue 148)
 * draw light gray lines in Manhattan plot

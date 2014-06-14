@@ -184,6 +184,11 @@ double_sample <- function(mother_gt1, mother_gt2, n_G3, n_trial) {
 ## calculate P(sum(X_i) <= obs)
 ## when X_i ~ binomial(size[i], p[i])
 calculate.prob <- function (obs, size, p) {
+  if (TRUE) {
+    cat("DBG in calculate.prob()\n")
+    wd <- getwd()
+    save(list=ls(), file = "dbg.calculate.prob.Rsave")
+  }
   N <- length (obs)
   ret <- list ()
   n.obs <- sum (obs)

@@ -58,7 +58,7 @@ convert_upper <- function(x) {
 }
 
 # this function generates messages, warnings and errors (and stop the program)
-report <- function(type, word, log_file, eol = TRUE) {
+report <- function(type, word, log_file = NULL, eol = TRUE) {
   # whether to print return sign
   if (eol == TRUE) {
     suffix <- "\r\n"
@@ -68,15 +68,21 @@ report <- function(type, word, log_file, eol = TRUE) {
 
   # message
   if (type == "m") {
-    cat(paste(word, suffix), file = log_file, append = TRUE)
+    if (!is.null(log_file)) {
+      cat(paste(word, suffix), file = log_file, append = TRUE)
+    }
     cat(paste(word, suffix))
   } else if (type == "w") {
     # warnings
-    cat(paste(word, suffix), file = log_file, append = TRUE)
+    if (!is.null(log_file)) {
+      cat(paste(word, suffix), file = log_file, append = TRUE)
+    }
     warning(word, call. = FALSE)
   } else if (type == "e") {
     # errors
-    cat(paste(word, suffix), file = log_file, append = TRUE)
+    if (!is.null(log_file)){
+      cat(paste(word, suffix), file = log_file, append = TRUE)
+    }
     stop(word, call. = FALSE)
   }
 }
@@ -111,4 +117,25 @@ pretty_num <- function(x) {
   }
   d <- floor(-log10(x))
   return(round(x * 10^d, digits = 3)/10^d)
+}
+
+#' re-source all .R files
+source.all.file <- function(dir = ".") {
+  fn <- list.files(path = dir, pattern = ".R$")
+  fn <- normalizePath(file.path(dir, fn))
+  for (i in fn) {
+    source(i)
+  }
+}
+if (FALSE) {
+  source.all.file("~/test.run/LinkageAnalysis/R")
+}
+
+snapshot <- function(call.func.name, fn) {
+
+  ## (TODO) may a variable (e.g. debug.snapshot) from parent.env to optionally snapshot()
+  wd <- getwd()
+  cat("DEBUG: current variables saved to: ", fn, "\n")
+  save(list = ls(), file = fn)
+  return(0)
 }

@@ -23,8 +23,9 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
                         silent = TRUE, tail = "decreasing", prefix = "",
                         cutoff_single = 0.01, n_trial = 1e+05, plot.it = TRUE,
                         transform.pheno = NULL) {
-  ## ##debug
-  ## save(list = ls(), file = "double_link.Rdata")
+  ##debug
+  wd <- getwd()
+  save(list = ls(), file = "dbg.double_link.Rdata")
   ## load("0512/nlrp3_inflammasome.3971/double_link.Rdata", verbose = TRUE)
   ## setwd("~/test.run/0512/nlrp3_inflammasome.3971")
   ## q('no')
@@ -160,6 +161,11 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
       }
 
       # test for synthetic lethality
+      if (TRUE) {
+        cat('dbg lethal\n')
+        wd <- getwd()
+        save(list = ls(), file = "dbg.mid.double_lethal.Rdata\n")
+      }
       sig[["lethal"]][i, j] <- double_lethal(data, input, i, j, n_trial)
       sig[["lethal"]][j, i] <- sig[["lethal"]][i, j]
     } ## end loop j
@@ -280,4 +286,7 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
                   tail))
   print(msg)
   report("m", msg, fns$log_file)
+  report("m", "Exit successfully", fns$log_file)
+
+  sig
 }

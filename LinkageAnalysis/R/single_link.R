@@ -172,6 +172,7 @@ single_link <- function(main_file = "", G2_file = "",
                   tail))
   print(msg)
   report("m", msg, fns$log_file)
+  report("m", "Exit successfully", fns$log_file)
 
   list(result = results)
 }
