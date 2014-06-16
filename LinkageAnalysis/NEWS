@@ -1,3 +1,5 @@
+1.0.1
+* Duplicate 2.0.2 to add exit messages
 2.0.2
 * single_link, double_link, meta.link return a list, in which returncode = 0 means exit successfully
 * tryCatch block added to avoid R functions to crash
