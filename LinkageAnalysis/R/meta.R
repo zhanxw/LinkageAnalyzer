@@ -67,6 +67,8 @@ meta.single.link <- function(vcfFile, ## a vector of list
       ## cat("\n", file = status.file.name, append = TRUE)
       msg <- sprintf("Log file [ %s ] created.", status.file.name)
       report("m", msg, log_file)
+      msg <- "Exit successfully but no outputs as dichotomization failed"
+      report("m", msg, log_file)
       q('no')
     }
   }

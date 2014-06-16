@@ -278,7 +278,7 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
       returncode = 0,
       message = "",
       data = list(genes = gene, phenotype = pheno, genotype = genotype, bin = bin,
-              unconverted = unconverted)))
+          unconverted = unconverted)))
 }
 
 #' dichotomize @param x into AFFECTED/UNAFFECTED
@@ -449,10 +449,14 @@ get.vcf <- function(vcfFile, log_file) {
     fmt <- str_split(ret[1,9], ":")[[1]]
 
     ret.indv <- list()
+    tmp <- indv
     for (i in 1:length(fmt)) {
+      ret.indv[[fmt[i]]] <- sub(":.*", "", tmp)
+      tmp <- sub('[^:]*:', "", tmp)
+
+      cat("Process FORMAT tag ", fmt[i], "\n")
       if (fmt[i] == "GT") {
         func <- function(x) {
-          x <- str_split(x, ":")[[1]][i]
           if (x == "0/0") {
             return(0)
           } else if (x == "0/1") {
@@ -467,18 +471,14 @@ get.vcf <- function(vcfFile, log_file) {
             return (NA)
           }
         }
-        #indv[1:2, 1:2]
-        #apply(as.matrix(indv[1:2, 1:2]), c(1, 2), func)
+        ret.indv[[fmt[i]]] <- apply(ret.indv[[fmt[i]]], c(1,2), func)
       } else if (fmt[i] == "REF" || fmt[i] == "VAR"){
-        func <- function(x) {
-          x <- str_split(x, ":")[[1]][i]
-          return (suppressWarnings(as.integer(x)))
-        }
+        suppressWarnings(storage.mode(ret.indv[[fmt[i]]]) <- "integer")
       } else {
         warning(sprintf("Skip individual format tag: %s", fmt[i]))
+        suppressWarnings(storage.mode(ret.indv[[fmt[i]]]) <- "integer")
       }
-      tmp <- apply(indv, c(1, 2), func)
-      ret.indv[[fmt[i]]] <- tmp
+      ## ret.indv[[fmt[i]]] <- apply(ret.indv[[fmt[i]]], c(1,2), func)
     }
     ret <- c(as.data.frame(site), ret.indv)
     length(ret)
@@ -577,8 +577,14 @@ vcf.summarize <- function(vcf) {
 
 
 ped.summarize <- function(ped) {
-  fam <- sort(unique(ped$fam))
+  fam <- sort(unique(ped$fid))
   cat("PED contain ", length(fam), " families: ", fam, "\n")
+
+  indv <- sort(unique(ped$iid))
+  cat("PED contain ", length(indv), " individuals: ", head(indv), "... \n")
+
+  fdr <- sort(unique(subset(ped, father == "." & mother == ".")$iid))
+  cat("PED contain ", length(fdr), " founders: ", head(fdr), "... \n")
 
   gen <- sort(unique(ped$gen))
   cat("PED contains ", length(gen), " generations:\n")

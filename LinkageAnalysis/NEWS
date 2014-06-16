@@ -1,5 +1,6 @@
 2.0.3
 * fix typo in analyzing VCF variants
+* speed up VCF loading speed
 * output VCF and PED summary
 1.0.1
 * Duplicate 2.0.2 to add exit messages
