@@ -1,3 +1,6 @@
+1.0.2
+* fix inproper exit message and returncode when autoBinary fails
+* improve console/log outputs
 2.0.3
 * fix typo in analyzing VCF variants
 * speed up VCF loading speed

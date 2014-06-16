@@ -234,6 +234,8 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
                                   levels = c(TRUE, FALSE),
                                   labels = c("AFFECTED", "UNAFFECTED"))
         ## if very unbalanced cutoff has chosen, gracefully quit
+        report("m", paste0("Number AFFECTED = ", sum(pheno$phenotype == "AFFECTED"),
+                           " UNAFFECTED = ", length(pheno$phenotype)), log_file)
         ratio <- sum(pheno$phenotype == "AFFECTED") / length(pheno$phenotype)
         if (ratio < 0.2 || ratio > 0.8) {
           msg <- sprintf("Dichotomizing phentoypes failed (affected ratio = %f)", ratio)
@@ -247,7 +249,8 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
           cat("\n", file = status.file.name, append = TRUE)
           msg <- sprintf("Log file [ %s ] created.", status.file.name)
           report("m", msg, log_file)
-          return(list(returncode = 0, message = "dichototomize failed", data = raw))
+          ## message should not be changed
+          return(list(returncode = 1, message = "dichototomize failed", data = raw))
         }
       }
 
@@ -314,6 +317,9 @@ dichotomize <- function(x, log_file = NULL) {
 
     ## if very unbalanced cutoff has chosen, gracefully quit
     ratio <- sum(ret$new.value == "AFFECTED") / length(ret$new.value)
+    report("m", paste0("Number AFFECTED = ", sum(pheno$phenotype == "AFFECTED"),
+                       " UNAFFECTED = ", length(pheno$phenotype)), log_file)
+
     if (ratio < 0.2 || ratio > 0.8) {
       msg <- sprintf("Dichotomizing phentoypes failed (affected ratio = %f)", ratio)
       report("m", msg, log_file)

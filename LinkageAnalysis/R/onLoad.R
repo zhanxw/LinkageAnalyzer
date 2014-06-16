@@ -14,5 +14,5 @@
     ##         }
     ##     }
     ## }
-    packageStartupMessage(sprintf("Package 'LinkageAnalysis' version %s", packageVersion("LinkageAnalysis")))
+    packageStartupMessage(sprintf("Package 'LinkageAnalysis' %s", packageVersion("LinkageAnalysis")))
 }
