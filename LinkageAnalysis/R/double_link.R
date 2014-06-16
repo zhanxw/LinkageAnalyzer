@@ -21,11 +21,42 @@ if (FALSE) {
 double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
                         detect = "never",
                         silent = TRUE, tail = "decreasing", prefix = "",
-                        cutoff_single = 0.01, n_trial = 1e+05, plot.it = TRUE,
+                        cutoff_single = 0.01, plot.it = TRUE,
+                        transform.pheno = NULL) {
+  log.file <- filename(output, prefix)$log_file
+  ret <- tryCatch(
+      {
+        ret <- double.link.impl(main_file, G2_file, output, test, detect, silent, tail,
+                                prefix, cutoff_single, plot.it, transform.pheno)
+        if (ret$returncode == 0) {
+          msg <- paste("Exit successfully", ret$message, sep = " ")
+        } else {
+          msg <- paste("Exit failed", ret$message, sep = " ")
+        }
+        report("m", msg, log.file)
+        return(ret)
+      },
+      error = function(err) {
+        snapshot("double.link.impl", "debug.double.link.impl.Rdata")
+        print(str(err))
+        print(err)
+        msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+        msg <- paste("Exit failed", msg, sep = " ")
+        report("m", msg, log.file)
+        return(list(returncode = 1, message = msg))
+      })
+
+  return(ret)
+}
+
+double.link.impl <- function(main_file, G2_file = "", output = ".", test = "woG2",
+                        detect = "never",
+                        silent = TRUE, tail = "decreasing", prefix = "",
+                        cutoff_single = 0.01, plot.it = TRUE,
                         transform.pheno = NULL) {
   ##debug
-  wd <- getwd()
-  save(list = ls(), file = "dbg.double_link.Rdata")
+  ## wd <- getwd()
+  ## save(list = ls(), file = "dbg.double_link.Rdata")
   ## load("0512/nlrp3_inflammasome.3971/double_link.Rdata", verbose = TRUE)
   ## setwd("~/test.run/0512/nlrp3_inflammasome.3971")
   ## q('no')
@@ -42,7 +73,15 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
   start.time <- Sys.time()
   # input
   fns <- filename(output, prefix)  # generate output file names
-  input <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)  # read data,G2 is null is G2 dam genotype data are not available
+
+  # read data,G2 is null is G2 dam genotype data are not available
+  snapshot("double.link.impl", "dbg.before.load.Rdata")
+  tmp <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)
+  if (tmp$returncode) {
+    return(tmp)
+  }
+  input <- tmp$data
+  report("m", "Load data complete", fns$log_file)
 
   # check validity of parameters
   if (!is.numeric(cutoff_single) || cutoff_single > 1) {
@@ -53,6 +92,7 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
   }
 
   # initialize significance matrix
+  snapshot("double.link.impl", "dbg.before.sig.Rdata")
   signif <- matrix(data = 1, nrow = input$n, ncol = input$n)  # significance matrix
   colnames(signif) <- input$genes$Gene
   rownames(signif) <- input$genes$Gene
@@ -161,12 +201,12 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
       }
 
       # test for synthetic lethality
-      if (TRUE) {
+      if (FALSE) {
         cat('dbg lethal\n')
         wd <- getwd()
-        save(list = ls(), file = "dbg.mid.double_lethal.Rdata\n")
+        save(list = ls(), file = "dbg.mid.double_lethal.Rdata")
       }
-      sig[["lethal"]][i, j] <- double_lethal(data, input, i, j, n_trial)
+      sig[["lethal"]][i, j] <- double_lethal(data, input, i, j)
       sig[["lethal"]][j, i] <- sig[["lethal"]][i, j]
     } ## end loop j
   } ## end loop i
@@ -286,7 +326,6 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
                   tail))
   print(msg)
   report("m", msg, fns$log_file)
-  report("m", "Exit successfully", fns$log_file)
 
-  sig
+  return(list(returncode = 0, result = sig))
 }

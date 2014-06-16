@@ -103,8 +103,8 @@ filename <- function(output, prefix) {
   distrib_file <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = ""))
   results_file <- file.path(output, paste("results.RData", sep = ""))
 
-  return(list(log_file = log_file, pdf_file = pdf_file, csv_file = csv_file, distrib_file = distrib_file,
-              results_file = results_file))
+  return(list(log_file = log_file, pdf_file = pdf_file, csv_file = csv_file,
+              distrib_file = distrib_file, results_file = results_file))
 }
 
 # this function shows small numbers (p values) in scientific mode
@@ -132,10 +132,17 @@ if (FALSE) {
 }
 
 snapshot <- function(call.func.name, fn) {
+  debug <- nchar(Sys.getenv(x="DEBUG_LINKAGE_ANALYSIS")) > 0
+  if (debug) {
+    if (!grepl("\\.Rdata", fn)) {
+      fn <- paste0(fn, ".Rdata")
+    }
 
-  ## (TODO) may a variable (e.g. debug.snapshot) from parent.env to optionally snapshot()
-  wd <- getwd()
-  cat("DEBUG: current variables saved to: ", fn, "\n")
-  save(list = ls(), file = fn)
+    wd <- getwd()
+    cat("DEBUG: function call = ", call.func.name, "\n")
+    cat("DEBUG: current variables saved to: ", fn, "\n")
+    env <- parent.frame()
+    save(list = ls(envir=env), file = fn, envir = env)
+  }
   return(0)
 }

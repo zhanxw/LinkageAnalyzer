@@ -3,27 +3,28 @@
 # REF:HET:VAR=3:4:1 2) if G2 mother is REF, REF:HET:VAR=1:1:0 3) if G2 mother is
 # HET, REF:HET:VAR=1:2:1
 
-# this function runs random sampling to find the number of G3 mice with VAR
-# genotype
-single_sample <- function(mother_gt, n_G3, n_trial) {
-  if (is.null(mother_gt) || is.na(mother_gt)) {
-    mother_gt <- "unknown"
-  }  # corresponding G2 data does not exist
-  if (mother_gt == "REF") {
-    return(0)
-  }
-  if (mother_gt == "HET") {
-    prob <- 1/4
-  }
-  if (!mother_gt %in% c("REF", "HET")) {
-    prob <- 1/8
-  }  # unknown, FAILED, FALSE
-  return(rbinom(n = n_trial, size = n_G3, prob = prob))
-}
+
+## # this function runs random sampling to find the number of G3 mice with VAR
+## # genotype
+## single_sample <- function(mother_gt, n_G3, n_trial) {
+##   if (is.null(mother_gt) || is.na(mother_gt)) {
+##     mother_gt <- "unknown"
+##   }  # corresponding G2 data does not exist
+##   if (mother_gt == "REF") {
+##     return(0)
+##   }
+##   if (mother_gt == "HET") {
+##     prob <- 1/4
+##   }
+##   if (!mother_gt %in% c("REF", "HET")) {
+##     prob <- 1/8
+##   }  # unknown, FAILED, FALSE
+##   return(rbinom(n = n_trial, size = n_G3, prob = prob))
+## }
 
 # this function tests whether each gene is a homozygous lethal with G2 data the
 # H0 is a gene is not homozygous lethal
-single_lethal <- function(genotype, genes, phenotype, G2, n_trial) {
+single_lethal <- function(genotype, genes, phenotype, G2) {
   if (FALSE) {
     wd <- getwd()
     save(file = "single_lethal.Rdata", list = ls())
@@ -143,7 +144,7 @@ single_lethal <- function(genotype, genes, phenotype, G2, n_trial) {
 
 # this function runs random sampling to find the number of G3 mice with desired
 # genotype
-double_sample <- function(mother_gt1, mother_gt2, n_G3, n_trial) {
+double_sample <- function(mother_gt1, mother_gt2, n_G3) {
   if (is.null(mother_gt1) || is.na(mother_gt1) ||
       mother_gt1 %in% c("FALSE", "FAILED", "ERROR")) {
     mother_gt1 <- "unknown"
@@ -184,7 +185,7 @@ double_sample <- function(mother_gt1, mother_gt2, n_G3, n_trial) {
 ## calculate P(sum(X_i) <= obs)
 ## when X_i ~ binomial(size[i], p[i])
 calculate.prob <- function (obs, size, p) {
-  if (TRUE) {
+  if (FALSE) {
     cat("DBG in calculate.prob()\n")
     wd <- getwd()
     save(list=ls(), file = "dbg.calculate.prob.Rsave")
@@ -234,7 +235,7 @@ calculate.prob <- function (obs, size, p) {
 
 # this function tests for synthetic lethality of two genes (VAR,HET; HET,VAR; and
 # VAR,VAR)
-double_lethal <- function(data, input, i, j, n_trial) {
+double_lethal <- function(data, input, i, j) {
   mothers <- as.vector(unique(data$mother))
   if (any(input$genes[c(i, j), "chr"] == "X")) {
     return(1)
@@ -279,7 +280,7 @@ double_lethal <- function(data, input, i, j, n_trial) {
     }
     ## MonteCarlo[, mother] <- double_sample(mother_gt1, mother_gt2, n_G3, n_trial)
     ## system.time(MonteCarlo[, mother] <- double_sample(mother_gt1, mother_gt2, n_G3, n_trial))
-    prob[mother]  <- double_sample(mother_gt1, mother_gt2, n_G3, n_trial)
+    prob[mother]  <- double_sample(mother_gt1, mother_gt2, n_G3)
     numG3[mother] <- n_G3
     numObs[mother] <- obs
   }

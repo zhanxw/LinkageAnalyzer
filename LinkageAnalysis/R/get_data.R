@@ -1,38 +1,58 @@
 #' this function reads the main data and the optional G2 genotype data if G2
 #' genotype data, the returned list will have an additional element
 #' @return a list containing:
-#'   genes: data.frame (sorted by chromsomal positions)
-#'     Gene: gene names, character vector
-#'     Coordination: character vector, e.g. "1_123"
-#'     chr: character vector
-#'     pos: numeric vector
-#'   phenotype: a list
-#'     mother: factor vector, mother names
-#'     sex: 0 = female, 1 = male, 0.5 = unknown
-#'     phenotype: numeric vector
-#'   genotype: character matrix with rowname = gene, colname = sampleName, e.g. "REF"
-#'   bin: logical
-#'   unconverted: list (may be NULL)
-#'     phenotype: original phenotype
-#'     break_point: break point
-#'   G2: character matrix. After fixing genotypes, it's similar to G2 file
-#'     Gene: char vec
-#'     Coordination: char vec
-#'     Amplicon: char vec
-#'   n:  # of genes
-#'   obs:  # of mice
+#'   returncode: 0 when success
+#'   message: optionally message
+#'   data
+#'     genes: data.frame (sorted by chromsomal positions)
+#'       Gene: gene names, character vector
+#'       Coordination: character vector, e.g. "1_123"
+#'       chr: character vector
+#'       pos: numeric vector
+#'     phenotype: a list
+#'       mother: factor vector, mother names
+#'       sex: 0 = female, 1 = male, 0.5 = unknown
+#'       phenotype: numeric vector
+#'     genotype: character matrix with rowname = gene, colname = sampleName, e.g. "REF"
+#'     bin: logical
+#'     unconverted: list (may be NULL)
+#'       phenotype: original phenotype
+#'       break_point: break point
+#'     G2: character matrix. After fixing genotypes, it's similar to G2 file
+#'       Gene: char vec
+#'       Coordination: char vec
+#'       Amplicon: char vec
+#'     n:  # of genes
+#'     obs:  # of mice
 get_data <- function(main = "", G2 = "", log_file, detect, transform.pheno = NULL) {
+  snapshot("get_data", "get_data.Rdata")
   data <- get_main(main, log_file, detect, transform.pheno)
+  if (data$returncode) {
+    return(data)
+  } else {
+    data <- data$data
+  }
+
   if (G2 != "") {
-    data <- c(data, list(G2 = get_G2(G2, log_file)))
+    G2 <- get_G2(G2, log_file)
+    if (G2$returncode) {
+      return(G2)
+    } else {
+      G2 <- G2$data
+    }
+    data <- c(data, list(G2))
   }
 
   data$n <- dim(data$genes)[1]  # number of genes
   data$obs <- dim(data$genotype)[2]  # number of mice
 
-  return(data)
+  return(list(returncode = 0, message = "", data = data))
 }
 
+#' #' @return a list of
+#'  returncode: non-zero when criitical error
+#'  message: related to the function running status
+#'  data: data loaded
 get_G2 <- function(file = "", log_file) {
   # read G2 genotype data
   raw <- read.csv(file, header = T, stringsAsFactor = F)
@@ -61,7 +81,7 @@ get_G2 <- function(file = "", log_file) {
   ## no genotype info
   if (ncol(raw) == 3) {
     rownames(raw) <- gene_pos
-    return(raw)
+    return(list(returncode = 0, message = "", data = raw))
   }
 
   # check level
@@ -81,9 +101,10 @@ get_G2 <- function(file = "", log_file) {
 
   # return G2 genotypes
   rownames(raw) <- gene_pos
-  return(raw)
+  return(list(returncode = 0, message = "", data = raw))
 }
 
+#' @return NULL when criitical error
 get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
   # read raw data and check format
   raw <- read.csv(file, header = F, stringsAsFactor = F)
@@ -192,6 +213,7 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
 
     # convert to binary variable
     if (detect != "never") {
+      library(mclust)
       report("m", "Detecting clustering of mice", log_file)
       mclust1 <- Mclust(pheno$phenotype, G = 1, modelNames = "E")
       mclust2 <- Mclust(pheno$phenotype, G = 2, modelNames = "E")
@@ -225,7 +247,7 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
           cat("\n", file = status.file.name, append = TRUE)
           msg <- sprintf("Log file [ %s ] created.", status.file.name)
           report("m", msg, log_file)
-          q('no')
+          return(list(returncode = 0, message = "dichototomize failed", data = raw))
         }
       }
 
@@ -251,8 +273,12 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
   genotype <- genotype[new_order, ]  # sort
 
   # return the three tables
-  return(list(genes = gene, phenotype = pheno, genotype = genotype, bin = bin,
-              unconverted = unconverted))
+
+  return(list(
+      returncode = 0,
+      message = "",
+      data = list(genes = gene, phenotype = pheno, genotype = genotype, bin = bin,
+              unconverted = unconverted)))
 }
 
 #' dichotomize @param x into AFFECTED/UNAFFECTED

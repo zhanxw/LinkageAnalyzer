@@ -2,6 +2,7 @@
 # of two glmer fits or two glm fits
 anova_test <- function(data, bin, test, silent = T, log_file, tail,
                        null.model = NULL, fit.null = FALSE) {
+  library(lme4)
   # check options
   if (test != "wG2" && test != "woG2") {
     report("e", "Unrecognized option for test parameter!", log_file)

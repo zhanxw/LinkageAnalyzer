@@ -21,10 +21,42 @@ if (FALSE) {
     ret2 <- single_link(main_file2, G2_file2, output, test, detect, silent, plot.it = TRUE)
 }
 
+
 single_link <- function(main_file = "", G2_file = "",
                         output = ".", test = "wG2",
                         detect = "never", silent = T, tail = "decreasing",
-                        prefix = "", n_trial = 1e+05, plot.it = TRUE,
+                        prefix = "", plot.it = TRUE,
+                        transform.pheno = NULL) {
+  log.file <- filename(output, prefix)$log_file
+  ret <- tryCatch(
+      {
+        ret <- single.link.impl(main_file, G2_file, output, test, detect, silent, tail,
+                                prefix, plot.it, transform.pheno)
+        if (ret$returncode == 0) {
+          msg <- paste("Exit successfully", ret$message, sep = " ")
+        } else {
+          msg <- paste("Exit failed", ret$message, sep = " ")
+        }
+        report("m", msg, log.file)
+        return(ret)
+      },
+      error = function(err) {
+        snapshot("single.link.impl", "debug.single.link.impl.Rdata")
+        print(str(err))
+        print(err)
+        msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+        msg <- paste("Exit failed", msg, sep = " ")
+        report("m", msg, log.file)
+        return(list(returncode = 1, message = msg))
+      })
+
+  return(ret)
+}
+
+single.link.impl <- function(main_file = "", G2_file = "",
+                        output = ".", test = "wG2",
+                        detect = "never", silent = T, tail = "decreasing",
+                        prefix = "", plot.it = TRUE,
                         transform.pheno = NULL) {
   start.time <- Sys.time()
 
@@ -34,7 +66,13 @@ single_link <- function(main_file = "", G2_file = "",
   }
 
   # read data
-  raw_data <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)
+  tmp <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)
+  if (tmp$returncode) {
+    return(tmp)
+  }
+  raw_data <- tmp$data
+  report("m", "Load data complete", fns$log_file)
+
   genes <- raw_data$genes
   phenotype <- raw_data$phenotype
   genotype <- raw_data$genotype
@@ -123,7 +161,7 @@ single_link <- function(main_file = "", G2_file = "",
   if (silent == F) {
     report("m", "Flag lethal genes\n", fns$log_file)
   }
-  genes$lethal <- single_lethal(genotype, genes, phenotype, G2, n_trial)
+  genes$lethal <- single_lethal(genotype, genes, phenotype, G2)
 
   alpha <- 0.05
   bonferroni <- alpha / sum(effective)
@@ -158,7 +196,7 @@ single_link <- function(main_file = "", G2_file = "",
   write.table(results, file = fns$csv_file, quote = F, row.names = F, sep = ",")
 
   analysis <- list(test = test, detect = detect, tail = tail, prefix = prefix,
-                   n_trial = n_trial, bin = bin, results = results, bonferroni = bonferroni)
+                   bin = bin, results = results, bonferroni = bonferroni)
   save(analysis, file = fns$results_file)
 
   end.time <- Sys.time()
@@ -172,7 +210,6 @@ single_link <- function(main_file = "", G2_file = "",
                   tail))
   print(msg)
   report("m", msg, fns$log_file)
-  report("m", "Exit successfully", fns$log_file)
 
-  list(result = results)
+  return(list(returncode = 0, result = results))
 }
