@@ -80,6 +80,11 @@ double.link.impl <- function(main_file, G2_file = "", output = ".", test = "woG2
   # input
   fns <- filename(output, prefix)  # generate output file names
 
+  report("m", paste("Version:", packageVersion("LinkageAnalysis")), fns$log_file)
+  report("m", paste("Date:", Sys.time()), fns$log_file)
+  report("m", paste("Host:", Sys.info()["nodename"]) , fns$log_file)
+  report("m", paste("Call:", deparse(sys.status()$sys.calls[[1]])), fns$log_file)
+
   # read data,G2 is null is G2 dam genotype data are not available
   snapshot("double.link.impl", "dbg.before.load.Rdata")
   tmp <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)

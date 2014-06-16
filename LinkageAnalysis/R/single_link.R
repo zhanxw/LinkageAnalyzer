@@ -67,6 +67,12 @@ single.link.impl <- function(main_file = "", G2_file = "",
   start.time <- Sys.time()
 
   fns <- filename(output, prefix)  # generate output file names
+
+  report("m", paste("Version:", packageVersion("LinkageAnalysis")), fns$log_file)
+  report("m", paste("Date:", Sys.time()), fns$log_file)
+  report("m", paste("Host:", Sys.info()["nodename"]) , fns$log_file)
+  report("m", paste("Call:", deparse(sys.status()$sys.calls[[1]])), fns$log_file)
+
   if (!tail %in% c("increasing", "decreasing", "both")) {
     report("e", "Unrecognized option for tail!", fns$log_file)
   }

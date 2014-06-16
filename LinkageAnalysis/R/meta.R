@@ -38,6 +38,11 @@ meta.single.link <- function(vcfFile, ## a vector of list
   debug.file <- NULL
   wd <- getwd()
 
+  cat(paste("Version:", packageVersion("LinkageAnalysis")), "\n")
+  cat(paste("Date:", Sys.time()), "\n")
+  cat(paste("Host:", Sys.info()["nodename"]), "\n")
+  cat(paste("Call:", deparse(sys.status()$sys.calls[[1]])), "\n")
+
   start.time <- Sys.time()
   cat("Load VCF file: ", vcfFile, "\n")
   vcf <- get.vcf(vcfFile)
