@@ -438,7 +438,7 @@ get.vcf <- function(vcfFile, log_file) {
     if (sum(!idx)) {
       cat("INFO: ", sum(!idx), " variant site do not PASS filter\n")
     }
-    ret <- ret[ !idx, ]
+    ret <- ret[idx, ]
 
     ## process individual genotype fields
     site <- ret[, 1:8]
@@ -567,4 +567,29 @@ vcf.add.sample <- function(vcf, sampleName) {
   ret$ALT <- cbind(vcf$ALT, tmp)
 
   ret
+}
+
+vcf.summarize <- function(vcf) {
+  nvar <- length(vcf$CHROM)
+  nsample <- ncol(vcf$GT)
+  cat("VCF contains ", nvar, " variants and ", nsample, " samples\n")
+}
+
+
+ped.summarize <- function(ped) {
+  fam <- sort(unique(ped$fam))
+  cat("PED contain ", length(fam), " families: ", fam, "\n")
+
+  gen <- sort(unique(ped$gen))
+  cat("PED contains ", length(gen), " generations:\n")
+  for (g in gen) {
+    n <- sum(ped$gen == g, na.rm = TRUE)
+    cat("  Generation ", g, " has ", n, " mice\n")
+  }
+  n <- sum(is.na(ped$gen))
+  cat("  Generation unknown ", n, " mice\n")
+
+  cat("PED gender distribution:\n")
+  print(table(ped$sex, exclude = NULL))
+
 }

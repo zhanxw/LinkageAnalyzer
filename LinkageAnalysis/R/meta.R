@@ -41,11 +41,11 @@ meta.single.link <- function(vcfFile, ## a vector of list
   start.time <- Sys.time()
   cat("Load VCF file: ", vcfFile, "\n")
   vcf <- get.vcf(vcfFile)
-  ##(TODO) summarize vcf
+  vcf.summarize(vcf)
 
   cat("Load PED file: ", pedFile, "\n")
   ped <- get.ped(pedFile)
-  ##(TODO) summarize ped
+  ped.summarize(ped)
 
   stopifnot(pheno.name %in% colnames(ped)[-(1:5)] )
   cat("VCF/PED loaded\n")
