@@ -94,15 +94,13 @@ meta.single.link <- function(vcfFile, ## a vector of list
     tmp <- tmp[!is.na(tmp)] ## remove NA
     tmp <- tmp[! tmp %in% c(-9, 0, 1, 2) ]
     if (length(unique(tmp)) == 0) {
-      mycat("WARNING: phenotype seems bo be binary, enable BINARY mode now\n")
-      ##detect <- "auto"
-      ## todo
+      mycat("WARNING: phenotype seems bo be binary and will apply binary models\n")
+      tmp <- ped[,pheno.name]
+      idx <- tmp %in% c(-9, 0)
+      ped[idx, pheno.name] <- NA
+      ped[,pheno.name] <- factor(ped[,pheno.name], levels = c(1, 2), labels = c("AFFECTED", "UNAFFECTED"))
     }
-
   }
-  ## mycat("Phenotypes are treated as continuous\n")
-  ## mycat("INFO: Phenotypes are treated as binary\n")
-
 
   fns <- filename(output, prefix)  # generate output file names
   if (!tail %in% c("increasing", "decreasing", "both")) {
@@ -162,14 +160,15 @@ meta.single.link <- function(vcfFile, ## a vector of list
   isBinary <- is.factor(pheno[,pheno.name])
   library(lme4)
   if (isBinary) {
+    mycat("INFO: Phenotypes are treated as binary\n")
     null <- glmer(as.formula(null.model), data = pheno, family = "binomial")
   } else {
+    mycat("INFO: Phenotypes are treated as continuous\n")
     null <- lmer(as.formula(null.model), data = pheno, REML = FALSE)
   }
 
-
   for (i in 1:nVariant) {
-    if (i > 10 ) {
+    if (i > 10 && is.debug.mode()) {
       cat("DEBUG....")
       next
     }

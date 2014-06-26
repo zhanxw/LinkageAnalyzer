@@ -131,9 +131,13 @@ if (FALSE) {
   source.all.file("~/test.run/LinkageAnalysis/R")
 }
 
-snapshot <- function(call.func.name, fn) {
+is.debug.mode <- function() {
   debug <- nchar(Sys.getenv(x="DEBUG_LINKAGE_ANALYSIS")) > 0
-  if (debug) {
+  return (debug)
+}
+
+snapshot <- function(call.func.name, fn) {
+  if (is.debug.mode()) {
     if (!grepl("\\.Rdata", fn)) {
       fn <- paste0(fn, ".Rdata")
     }
@@ -146,3 +150,4 @@ snapshot <- function(call.func.name, fn) {
   }
   return(0)
 }
+
