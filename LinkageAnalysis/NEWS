@@ -1,3 +1,9 @@
+1.0.5
+* same as 1.0.4, but released for fix urgent issue 156
+2.0.5
+* More sanity check on binary phenotypes
+1.0.4
+* Return code is set to 0 (normal exits) when dichotomize fails
 2.0.4
 * support output= in meta.link
 1.0.3

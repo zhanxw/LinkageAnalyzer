@@ -250,7 +250,7 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
           msg <- sprintf("Log file [ %s ] created.", status.file.name)
           report("m", msg, log_file)
           ## message should not be changed
-          return(list(returncode = 1, message = "dichototomize failed", data = raw))
+          return(list(returncode = 1, message = "dichotomize failed", data = raw))
         }
       }
 
@@ -317,8 +317,8 @@ dichotomize <- function(x, log_file = NULL) {
 
     ## if very unbalanced cutoff has chosen, gracefully quit
     ratio <- sum(ret$new.value == "AFFECTED") / length(ret$new.value)
-    report("m", paste0("Number AFFECTED = ", sum(pheno$phenotype == "AFFECTED"),
-                       " UNAFFECTED = ", length(pheno$phenotype)), log_file)
+    report("m", paste0("Number AFFECTED = ", sum(ret$new.value == "AFFECTED"),
+                       " UNAFFECTED = ", sum(ret$new.value == "UNAFFECTED")), log_file)
 
     if (ratio < 0.2 || ratio > 0.8) {
       msg <- sprintf("Dichotomizing phentoypes failed (affected ratio = %f)", ratio)
@@ -604,4 +604,8 @@ ped.summarize <- function(ped) {
   cat("PED gender distribution:\n")
   print(table(ped$sex, exclude = NULL))
 
+  for (i in 6:ncol(ped)) {
+    cat("PED phenotype summary: ", colnames(ped)[i], "\n")
+    print(summary(ped[,i]))
+  }
 }

@@ -34,19 +34,22 @@ meta.single.link <- function(vcfFile, ## a vector of list
                              prefix = "",
                              plot.it = FALSE,
                              transform.pheno = NULL) {
-
+  ## create log file
   log.file <- file.path(output, "log.txt")
+  if (file.exists(log.file)) {
+    file.remove(log.file)
+  }
+
   mycat <- function(...) {
     cat(..., file = log.file, append = TRUE)
   }
 
-  debug.file <- NULL
   wd <- getwd()
-
   mycat(paste("Version:", packageVersion("LinkageAnalysis")), "\n")
   mycat(paste("Date:", Sys.time()), "\n")
   mycat(paste("Host:", Sys.info()["nodename"]), "\n")
   mycat(paste("Call:", deparse(sys.status()$sys.calls[[1]])), "\n")
+  mycat(paste("Directory:", wd), "\n")
 
   start.time <- Sys.time()
   mycat("Load VCF file: ", vcfFile, "\n")
@@ -58,37 +61,56 @@ meta.single.link <- function(vcfFile, ## a vector of list
   ped.summarize(ped)
 
   stopifnot(pheno.name %in% colnames(ped)[-(1:5)] )
+  stopifnot(!all(is.na(ped[,pheno.name])))
   mycat("VCF/PED loaded\n")
 
   snapshot("meta.link", "dbg.meta.Rdata")
 
+  mycat("Detect phenotype type\n")
   if (detect == "auto") {
     tmp <- dichotomize(ped[,pheno.name])
     if (tmp$succ) {
       ped[,pheno.name] <- tmp$new.value
     } else {
-      mycat("Dichomize failed, ")
+      mycat("ERROR: Dichotomize failed, ")
       status.file.name <- paste(dirname(log_file),
                                 "R_jobs_complete_with_no_output.txt",
                                 sep = .Platform$file.sep)
-      mycat(date(), file = status.file.name)
-      mycat("\t", file = status.file.name, append = TRUE)
+      cat(date(), file = status.file.name)
+      cat("\t", file = status.file.name, append = TRUE)
       ## cat(msg, file = status.file.name, append = TRUE)
       ## cat("\n", file = status.file.name, append = TRUE)
       msg <- sprintf("Log file [ %s ] created.", status.file.name)
-      report("m", msg, log_file)
+      ## report("m", msg, log_file)
+      mycat(msg)
       msg <- "Exit successfully but no outputs as dichotomization failed"
-      report("m", msg, log_file)
+      ## report("m", msg, log_file)
+      mycat(msg)
       q('no')
     }
+  } else {
+    ## phenotype is quantitative, but let's double check it's QTL
+    tmp <- ped[,pheno.name]
+    tmp <- tmp[!is.na(tmp)] ## remove NA
+    tmp <- tmp[! tmp %in% c(-9, 0, 1, 2) ]
+    if (length(unique(tmp)) == 0) {
+      mycat("WARNING: phenotype seems bo be binary, enable BINARY mode now\n")
+      ##detect <- "auto"
+      ## todo
+    }
+
   }
+  ## mycat("Phenotypes are treated as continuous\n")
+  ## mycat("INFO: Phenotypes are treated as binary\n")
+
+
   fns <- filename(output, prefix)  # generate output file names
   if (!tail %in% c("increasing", "decreasing", "both")) {
-    mycat("Unrecognized option for tail [ ", tail, "]\n")
+    mycat("ERROR: Unrecognized option for tail [ ", tail, "]\n")
     return(list(returncode = -1))
   }
 
-  ## make a fake output
+  ## make an output skeleton
   nSite <- length(vcf$CHROM)
   nas <- rep(NA, nSite)
   gene <- str_replace(sapply(vcf$INFO, function(x) {str_split(x, ";")[[1]][1]}), "GENE=", "")
@@ -145,7 +167,12 @@ meta.single.link <- function(vcfFile, ## a vector of list
     null <- lmer(as.formula(null.model), data = pheno, REML = FALSE)
   }
 
+
   for (i in 1:nVariant) {
+    if (i > 10 ) {
+      cat("DEBUG....")
+      next
+    }
     mycat("Process ", i, " th variant: ", gene[i], "\n")
     if (length(unique(geno[i,])) == 1) {
       ## skip mono site
