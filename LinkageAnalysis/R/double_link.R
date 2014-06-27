@@ -34,6 +34,8 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
           if (ret$returncode == 1 && ret$message == "dichotomize failed") {
             # this is a special error,
             # meaning we will treat it as normal exit but no output files
+            # so returncode are changed from 1 to 0
+            ret$returncode = 0
             msg <- paste("Exit successfully with no outputs due to", ret$message)
           } else {
             msg <- paste("Exit failed", ret$message, sep = " ")
