@@ -316,9 +316,11 @@ dichotomize <- function(x, log_file = NULL) {
                             labels = c("AFFECTED", "UNAFFECTED"))
 
     ## if very unbalanced cutoff has chosen, gracefully quit
-    ratio <- sum(ret$new.value == "AFFECTED") / length(ret$new.value)
-    report("m", paste0("Number AFFECTED = ", sum(ret$new.value == "AFFECTED"),
-                       " UNAFFECTED = ", sum(ret$new.value == "UNAFFECTED")), log_file)
+    num.affected <- sum(ret$new.value == "AFFECTED")
+    num.unaffected <- sum(ret$new.value == "UNAFFECTED"))
+    ratio <- num.affected / (num.affected + num.unaffected)
+    report("m", paste0("Number AFFECTED = ", num.affected,
+                       " UNAFFECTED = ", num.unaffected, log_file)
 
     if (ratio < 0.2 || ratio > 0.8) {
       msg <- sprintf("Dichotomizing phentoypes failed (affected ratio = %f)", ratio)
