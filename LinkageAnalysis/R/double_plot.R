@@ -81,7 +81,7 @@ double_distrib <- function(flag, data, input, type, pair) {
     testMark$y <- ystep + ystep * testMark$y + ymax
     print(testMark)
     ylim <- c(ymin, max(ymax, testMark$y, na.rm = TRUE))
-    cat("DBG: ylim = ", ylim, "\n")
+    ## cat("DBG: ylim = ", ylim, "\n")
 
     # continuous mode plot distribution and x axis
     x_noise <- runif(length(data$gt1), 0, 0.4) - 0.2

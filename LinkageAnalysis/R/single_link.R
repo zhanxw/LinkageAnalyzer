@@ -1,24 +1,24 @@
 if (FALSE) {
-    main_file <- "/home/zhanxw/test.run/perm/Amber.1/td_rsfv_bga.20140427/R0071_td_rsfv_bga_main_norm_continuous.csv"
-    G2_file <- "/home/zhanxw/test.run/perm/Amber.1/td_rsfv_bga.20140427/R0071_G2dam.csv"
-    main_file2 <- "/home/zhanxw/test.run/perm/Amber.2/td_rsfv_bga.20140427/R0071_td_rsfv_bga_main_norm_continuous.csv"
-    G2_file2 <- "/home/zhanxw/test.run/perm/Amber.2/td_rsfv_bga.20140427/R0071_G2dam.csv"
-    output = "."
-    test = "wG2"
-    detect = "never"
-    silent = F
-    tail = "decreasing"
-    prefix = ""
-    n_trail = 10 # 1e5
-    plot.it = FALSE
-    transform.pheno = NULL
-    library(mclust)
-    library(lme4)
-    for (i in list.files("/home/zhanxw/test.run/LinkageAnalysis/R", pattern = ".*.R$")) {
-        source(i)
-    }
-    ret <- single_link(main_file, G2_file, output, test, detect, silent, plot.it = TRUE)
-    ret2 <- single_link(main_file2, G2_file2, output, test, detect, silent, plot.it = TRUE)
+  main_file <- "/home/zhanxw/test.run/perm/Amber.1/td_rsfv_bga.20140427/R0071_td_rsfv_bga_main_norm_continuous.csv"
+  G2_file <- "/home/zhanxw/test.run/perm/Amber.1/td_rsfv_bga.20140427/R0071_G2dam.csv"
+  main_file2 <- "/home/zhanxw/test.run/perm/Amber.2/td_rsfv_bga.20140427/R0071_td_rsfv_bga_main_norm_continuous.csv"
+  G2_file2 <- "/home/zhanxw/test.run/perm/Amber.2/td_rsfv_bga.20140427/R0071_G2dam.csv"
+  output = "."
+  test = "wG2"
+  detect = "never"
+  silent = F
+  tail = "decreasing"
+  prefix = ""
+  n_trail = 10 # 1e5
+  plot.it = FALSE
+  transform.pheno = NULL
+  library(mclust)
+  library(lme4)
+  for (i in list.files("/home/zhanxw/test.run/LinkageAnalysis/R", pattern = ".*.R$")) {
+    source(i)
+  }
+  ret <- single_link(main_file, G2_file, output, test, detect, silent, plot.it = TRUE)
+  ret2 <- single_link(main_file2, G2_file2, output, test, detect, silent, plot.it = TRUE)
 }
 
 
@@ -62,10 +62,10 @@ single_link <- function(main_file = "", G2_file = "",
 }
 
 single.link.impl <- function(main_file = "", G2_file = "",
-                        output = ".", test = "wG2",
-                        detect = "never", silent = T, tail = "decreasing",
-                        prefix = "", plot.it = TRUE,
-                        transform.pheno = NULL) {
+                             output = ".", test = "wG2",
+                             detect = "never", silent = T, tail = "decreasing",
+                             prefix = "", plot.it = TRUE,
+                             transform.pheno = NULL) {
   start.time <- Sys.time()
 
   fns <- filename(output, prefix)  # generate output file names

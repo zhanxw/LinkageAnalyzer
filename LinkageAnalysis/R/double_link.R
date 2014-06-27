@@ -58,10 +58,10 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
 }
 
 double.link.impl <- function(main_file, G2_file = "", output = ".", test = "woG2",
-                        detect = "never",
-                        silent = TRUE, tail = "decreasing", prefix = "",
-                        cutoff_single = 0.01, plot.it = TRUE,
-                        transform.pheno = NULL) {
+                             detect = "never",
+                             silent = TRUE, tail = "decreasing", prefix = "",
+                             cutoff_single = 0.01, plot.it = TRUE,
+                             transform.pheno = NULL) {
   ##debug
   ## wd <- getwd()
   ## save(list = ls(), file = "dbg.double_link.Rdata")
