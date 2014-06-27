@@ -317,10 +317,10 @@ dichotomize <- function(x, log_file = NULL) {
 
     ## if very unbalanced cutoff has chosen, gracefully quit
     num.affected <- sum(ret$new.value == "AFFECTED")
-    num.unaffected <- sum(ret$new.value == "UNAFFECTED"))
+    num.unaffected <- sum(ret$new.value == "UNAFFECTED")
     ratio <- num.affected / (num.affected + num.unaffected)
     report("m", paste0("Number AFFECTED = ", num.affected,
-                       " UNAFFECTED = ", num.unaffected, log_file)
+                       " UNAFFECTED = ", num.unaffected), log_file)
 
     if (ratio < 0.2 || ratio > 0.8) {
       msg <- sprintf("Dichotomizing phentoypes failed (affected ratio = %f)", ratio)
