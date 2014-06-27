@@ -13,10 +13,7 @@ if (FALSE) {
   transform.pheno = NULL
 }
 
-## param <- data.frame(func = d$func, vcf = vcfFile, ped = pedFile, pheno.name = pheno.name, ouput = d$output, test = d$test, detect = d$detect)
-## write.csv(param, file = "param.csv", quote = FALSE, row.names = FALSE)
-
-#' Perform single variant super pedigree analysis
+#' Meta-analyze single variant in super pedigree
 #' @exmaple
 #' setwd("~zhanxw/test.run/0530.meta")
 #' vcfFile <- "R0359-R0360.vcf"
@@ -34,6 +31,53 @@ meta.single.link <- function(vcfFile, ## a vector of list
                              prefix = "",
                              plot.it = FALSE,
                              transform.pheno = NULL) {
+  log.file <- filename(output, prefix)$log_file
+  ret <- tryCatch(
+      {
+        ret <- meta.single.link.impl(vcfFile, pedFile, pheno.name,
+                                     output, test,
+                                     detect, silent, tail, prefix,
+                                     plot.it, transform.pheno)
+        if (ret$returncode == 0) {
+          msg <- paste("Exit successfully", ret$message, sep = " ")
+        } else {
+          if (ret$returncode == 1 && ret$message == "dichotomize failed") {
+            # this is a special error,
+            # meaning we will treat it as normal exit but no output files
+            # so returncode are changed from 1 to 0
+            ret$returncode = 0
+            msg <- paste("Exit successfully with no outputs due to", ret$message)
+          } else {
+            msg <- paste("Exit failed", ret$message, sep = " ")
+          }
+        }
+        report("m", msg, log.file)
+        return(ret)
+      },
+      error = function(err) {
+        snapshot("meta.single.link.impl", "debug.meta.single.link.impl.Rdata")
+        print(str(err))
+        print(err)
+        msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+        msg <- paste("Exit failed", msg, sep = " ")
+        report("m", msg, log.file)
+        return(list(returncode = 1, message = msg))
+      })
+
+  return(ret)
+}
+
+meta.single.link.impl <- function(vcfFile, ## a vector of list
+                                  pedFile, ## a vector of list
+                                  pheno.name, ## which phenotype to use
+                                  output = ".",
+                                  test = "wG2",
+                                  detect = "never",
+                                  silent = T,
+                                  tail = "decreasing",
+                                  prefix = "",
+                                  plot.it = FALSE,
+                                  transform.pheno = NULL) {
   ## create log file
   log.file <- file.path(output, "log.txt")
   if (file.exists(log.file)) {
@@ -73,9 +117,9 @@ meta.single.link <- function(vcfFile, ## a vector of list
       ped[,pheno.name] <- tmp$new.value
     } else {
       mycat("ERROR: Dichotomize failed, ")
-      status.file.name <- paste(dirname(log_file),
-                                "R_jobs_complete_with_no_output.txt",
-                                sep = .Platform$file.sep)
+
+      status.file.name <- file.path(dirname(log.file),
+                                    "R_jobs_complete_with_no_output.txt")
       cat(date(), file = status.file.name)
       cat("\t", file = status.file.name, append = TRUE)
       ## cat(msg, file = status.file.name, append = TRUE)
@@ -86,7 +130,7 @@ meta.single.link <- function(vcfFile, ## a vector of list
       msg <- "Exit successfully but no outputs as dichotomization failed"
       ## report("m", msg, log_file)
       mycat(msg)
-      q('no')
+      return(list(returncode = 1, message = msg))
     }
   } else {
     ## phenotype is quantitative, but let's double check it's QTL
@@ -104,8 +148,9 @@ meta.single.link <- function(vcfFile, ## a vector of list
 
   fns <- filename(output, prefix)  # generate output file names
   if (!tail %in% c("increasing", "decreasing", "both")) {
-    mycat("ERROR: Unrecognized option for tail [ ", tail, "]\n")
-    return(list(returncode = -1))
+    msg <- paste0("ERROR: Unrecognized option for tail [ ", tail, "]\n")
+    mycat(msg)
+    return(list(returncode = 1, message = msg))
   }
 
   ## make an output skeleton
@@ -229,4 +274,3 @@ meta.single.link <- function(vcfFile, ## a vector of list
   mycat("Exit successfully\n")
   return(list(returncode = 0, message = "", result = ret))
 }
-
