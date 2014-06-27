@@ -116,18 +116,22 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     if (tmp$succ) {
       ped[,pheno.name] <- tmp$new.value
     } else {
-      mycat("ERROR: Dichotomize failed, ")
+      mycat("ERROR: Dichotomize failed\n")
 
+      # write status.file
       status.file.name <- file.path(dirname(log.file),
                                     "R_jobs_complete_with_no_output.txt")
       cat(date(), file = status.file.name)
       cat("\t", file = status.file.name, append = TRUE)
       ## cat(msg, file = status.file.name, append = TRUE)
       ## cat("\n", file = status.file.name, append = TRUE)
+
+
       msg <- sprintf("Log file [ %s ] created.", status.file.name)
       ## report("m", msg, log_file)
       mycat(msg)
-      msg <- "Exit successfully but no outputs as dichotomization failed"
+      ##msg <- "Exit successfully but no outputs as dichotomization failed"
+      msg <- "dichotomize failed"
       ## report("m", msg, log_file)
       mycat(msg)
       return(list(returncode = 1, message = msg))

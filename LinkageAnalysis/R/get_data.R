@@ -240,16 +240,17 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
         if (ratio < 0.2 || ratio > 0.8) {
           msg <- sprintf("Dichotomizing phentoypes failed (affected ratio = %f)", ratio)
           report("m", msg, log_file)
-          status.file.name <- paste(dirname(log_file),
-                                    "R_jobs_complete_with_no_output.txt",
-                                    sep = .Platform$file.sep)
+
+          # write status.file
+          status.file.name <- file.path(dirname(log_file),
+                                    "R_jobs_complete_with_no_output.txt")
           cat(date(), file = status.file.name)
           cat("\t", file = status.file.name, append = TRUE)
           cat(msg, file = status.file.name, append = TRUE)
           cat("\n", file = status.file.name, append = TRUE)
+
           msg <- sprintf("Log file [ %s ] created.", status.file.name)
           report("m", msg, log_file)
-          ## message should not be changed
           return(list(returncode = 1, message = "dichotomize failed", data = raw))
         }
       }
