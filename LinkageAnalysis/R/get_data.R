@@ -286,8 +286,9 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
 }
 
 #' dichotomize @param x into AFFECTED/UNAFFECTED
-#' @return list()
+#' @return list(), group -> suggested group number
 dichotomize <- function(x, log_file = NULL) {
+  snapshot("dichotomize", "dichotomize.Rdata")
   ret <- list(succ = FALSE, group = NA, break_point = NA, new.value = NULL, old.value = x)
 
   orig.len <- length(x)
@@ -310,7 +311,6 @@ dichotomize <- function(x, log_file = NULL) {
     #report("m", "Convert to binary outcomevariable", log_file)
     report("m", paste("Cutoff:", break_point), log_file)
     bin <- TRUE
-    ret$orig <- x  # store in unconverted
     ret$break_point <- break_point
     ret$new.value <- factor(x < break_point,
                             levels = c(TRUE, FALSE),
@@ -326,22 +326,19 @@ dichotomize <- function(x, log_file = NULL) {
     if (ratio < 0.2 || ratio > 0.8) {
       msg <- sprintf("Dichotomizing phentoypes failed (affected ratio = %f)", ratio)
       report("m", msg, log_file)
-      ## status.file.name <- paste(dirname(log_file),
-      ##                           "R_jobs_complete_with_no_output.txt",
-      ##                           sep = .Platform$file.sep)
-      ## cat(date(), file = status.file.name)
-      ## cat("\t", file = status.file.name, append = TRUE)
-      ## cat(msg, file = status.file.name, append = TRUE)
-      ## cat("\n", file = status.file.name, append = TRUE)
-      ## msg <- sprintf("Log file [ %s ] created.", status.file.name)
-      ## report("m", msg, log_file)
-      ## q('no')
       ret$group <- 1
       ret$succ  <- FALSE
     } else {
       ret$group <- 2
       ret$succ  <- TRUE
     }
+  } else {
+    msg <- sprintf("Dichotomizing phentoypes failed (one cluster is preferred to two clusters)\n")
+    report("m", msg, log_file)
+    msg <- sprintf("Data = %s", paste(ret$old.value, collapse = ","))
+    report("m", msg, log_file)
+    ret$group <- 1
+    ret$succ  <- FALSE
   }
 
   if (mclust3$bic > mclust1$bic && mclust3$bic > mclust2$bic) {
@@ -351,8 +348,8 @@ dichotomize <- function(x, log_file = NULL) {
   }
   ## fill in missing values
   nMissing <- length(ret$old.value) - length(ret$new.value)
-  if ( nMissing > 0) {
-    ret$new.value <- factor(ret$old.value < break_point,
+  if ( nMissing > 0 && !is.na(ret$break_point)) {
+    ret$new.value <- factor(ret$old.value < ret$break_point,
                             levels = c(TRUE, FALSE),
                             labels = c("AFFECTED", "UNAFFECTED"))
   }

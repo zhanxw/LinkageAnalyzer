@@ -86,6 +86,7 @@ single.link.impl <- function(main_file = "", G2_file = "",
   }
   raw_data <- tmp$data
   report("m", "Load data complete", fns$log_file)
+  snapshot("single.load.data", "debug.single.load.data")
 
   genes <- raw_data$genes
   phenotype <- raw_data$phenotype
