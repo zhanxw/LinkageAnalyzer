@@ -1,3 +1,7 @@
+2.1.1
+* improve convert_gt()
+* output results are sorted by chrom:pos
+* fix non-positive definite predictors in meta.single
 2.1.0
 * fix issue 162 (break_point problem)
 1.0.9

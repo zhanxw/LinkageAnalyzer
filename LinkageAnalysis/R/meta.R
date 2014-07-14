@@ -228,6 +228,14 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     }
     for (type in c("additive", "recessive", "dominant")) {
       pheno$gt <- convert_gt(geno[i,], type)
+
+      ## skip this site when the genotypes are monomorphic
+      if (length(unique(pheno$gt)[!is.na(unique(pheno$gt))]) <= 1) {
+        mycat("Skip monomorphic site under ", type, " model\n")
+        ret[i, type] <- pval <- 1
+        next
+      }
+
       ## impute missing genotypes
       pheno$gt[is.na(pheno$gt)] <- mean(pheno$gt, na.rm = TRUE)
 

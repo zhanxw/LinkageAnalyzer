@@ -1,24 +1,40 @@
-# this function converts the genotype in character string to numerical
+# @param gt, when it's character, this function converts to numerical values
 # representation according to type FAILED, FALSE, and other types will be
 # converted to NA
+# @param gt, when it's numerics, then conversion is directly peformed
 convert_gt <- function(gt, type) {
-  if (type == "additive") {
-    gt2num <- c(0, 1, 2)
-  } else if (type == "recessive") {
-    gt2num <- c(1, 1, 2)
-  } else if (type == "dominant") {
-    gt2num <- c(0, 1, 1)
-  } else {
+  if (!type %in% c("additive", "recessive", "dominant") ) {
     cat("Unrecognized type: ", type, "\n")
     stop("convert_gt() failed")
   }
+  if (is.character(gt)) {
+    if (type == "additive") {
+      gt2num <- c(0, 1, 2)
+    } else if (type == "recessive") {
+      gt2num <- c(1, 1, 2)
+    } else if (type == "dominant") {
+      gt2num <- c(0, 1, 1)
+    }
 
-  gt[gt == "REF"] <- gt2num[1]
-  gt[gt == "HET"] <- gt2num[2]
-  gt[gt == "VAR"] <- gt2num[3]
-  gt[!gt %in% c("0", "1", "2")] <- NA
-  gt <- as.numeric(gt)
+    gt[gt == "REF"] <- gt2num[1]
+    gt[gt == "HET"] <- gt2num[2]
+    gt[gt == "VAR"] <- gt2num[3]
+    gt[!gt %in% c("0", "1", "2")] <- NA
+    gt <- as.numeric(gt)
+  }
 
+  ## conversion
+  if (any(gt > 2 | gt < 0, na.rm = TRUE)) {
+    cat("GT = ", gt, "\n")
+    stop("some gt is not between [0, 2]")
+  }
+  if (type == "additive") {
+    # do nothing
+  } else if (type == "recessive") {
+    gt <- ifelse(gt > 1.5, 2, 1)
+  } else if (type == "dominant") {
+    gt <- ifelse(gt > 0.5, 1, 0)
+  }
   return(gt)
 }
 
@@ -150,4 +166,3 @@ snapshot <- function(call.func.name, fn) {
   }
   return(0)
 }
-

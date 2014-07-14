@@ -415,6 +415,16 @@ get.ped <- function(pedFile, pheno = NULL, detect = NULL) {
   ped
 }
 
+## order @param chrom and @parm pos together
+order.chrom.pos <- function(chrom, pos) {
+  ## order chrom:pos, then for numeric chrom values, put them forward
+  ord <- order(chrom, pos)
+  idx.num <- !is.na(suppressWarnings(as.numeric(chrom)) )
+  ord[idx.num] <- order(as.numeric(chrom[idx.num])) - 100
+  ord <- order(ord)
+  ord
+}
+
 get.vcf <- function(vcfFile, log_file) {
   ## read vcfs
   vcf <- readLines(vcfFile)
@@ -435,8 +445,8 @@ get.vcf <- function(vcfFile, log_file) {
     }
     ret <- ret[!tmp,]
 
-    ## sort by chromsomal positions
-    tmp <- order(ret[,1], ret[,2])
+    ## sort by chromsomal (CHROM, POS) positions
+    tmp <- order.chrom.pos(ret[,1], ret[,2])
     ret <- ret[tmp,]
 
     ## remove QUAL != "PASS"
