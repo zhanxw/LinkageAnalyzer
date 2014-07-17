@@ -497,7 +497,8 @@ get.vcf <- function(vcfFile, log_file) {
       ## ret.indv[[fmt[i]]] <- apply(ret.indv[[fmt[i]]], c(1,2), func)
     }
     ret <- c(as.data.frame(site), ret.indv)
-    length(ret)
+    ret <- c(ret, list(sampleId = hdr[-(1:9)]))
+    # length(ret)
     ret
   }
   vcf <- parseVcf(vcf, hdr)
@@ -584,6 +585,23 @@ vcf.add.sample <- function(vcf, sampleName) {
 
   ret
 }
+
+vcf.delete.sample.by.index <- function(vcf, index) {
+  n <- length(vcf)
+  for (i in 1:n) {
+    if (is.matrix(vcf[[i]])) {
+      if (ncol(vcf[[i]]) == length(index)) {
+        vcf[[i]] <- vcf[[i]][,!index]
+      }
+    } else if (is.vector(vcf[[i]])) {
+      if (length(vcf[[i]]) == length(index)) {
+        vcf[[i]] <- vcf[[i]][!index]
+      }
+    }
+  }
+  vcf
+}
+
 
 vcf.summarize <- function(vcf) {
   nvar <- length(vcf$CHROM)

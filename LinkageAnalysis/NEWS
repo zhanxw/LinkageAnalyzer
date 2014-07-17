@@ -1,3 +1,10 @@
+NextVersion
+* compute lethal p-value in meta.link
+* by default, draw manhattan plot and distribution plot in meta.link()
+2.1.2
+* fix non-positive definite predictors in meta.single by tuning nAGQ
+* impute missing genotype to REF in meta.link
+* fix bug: make sure samples are in order in both vcf and ped file
 2.1.1
 * improve convert_gt()
 * output results are sorted by chrom:pos

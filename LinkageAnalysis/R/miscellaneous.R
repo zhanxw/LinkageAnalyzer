@@ -38,7 +38,10 @@ convert_gt <- function(gt, type) {
   return(gt)
 }
 
-# this function converts a two-tailed p value to a one-tailed p value
+#' this function converts a two-tailed p value to a one-tailed p value
+#' @param effect is positive
+#' @param pval pvalue
+#' @param tail "decreasing", "increasing" or "both"
 convert_tail <- function(direction, pval, tail) {
   # expected direction
   if (tail == "decreasing") {
@@ -56,7 +59,10 @@ convert_tail <- function(direction, pval, tail) {
       pval <- pval/2
     }
     return(pval)
+  } else if (tail == "both") {
+    return(pval)
   } else {
+    warning(paste0("Unrecognized tail type = ", tail))
     return(pval)
   }
 }
@@ -150,6 +156,13 @@ if (FALSE) {
 is.debug.mode <- function() {
   debug <- nchar(Sys.getenv(x="DEBUG_LINKAGE_ANALYSIS")) > 0
   return (debug)
+}
+
+enable.debug.mode <- function() {
+  Sys.setenv(DEBUG_LINKAGE_ANALYSIS = 1)
+}
+disabe.debug.mode <- function() {
+  Sys.unsetenv("DEBUG_LINKAGE_ANALYSIS")
 }
 
 snapshot <- function(call.func.name, fn) {

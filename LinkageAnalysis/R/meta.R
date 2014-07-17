@@ -104,8 +104,18 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   ped <- get.ped(pedFile)
   ped.summarize(ped)
 
+  ## verify phenotype name
   stopifnot(pheno.name %in% colnames(ped)[-(1:5)] )
   stopifnot(!all(is.na(ped[,pheno.name])))
+
+  ## clean up samples in VCF and PED
+  idx <- ! vcf$sampleId %in% ped[,2]
+  mycat("Remove ", sum(idx), " samples from VCF as they are not in PED\n")
+  vcf <- vcf.delete.sample.by.index(vcf, idx)
+
+  idx <- match(vcf$sampleId, ped[,2])
+  mycat("Remove ", nrow(ped) - length(idx), " samples from PED as they are not in VCF\n")
+  ped <- ped[idx, ]
   mycat("VCF/PED loaded\n")
 
   snapshot("meta.link", "dbg.meta.Rdata")
@@ -123,8 +133,6 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
                                     "R_jobs_complete_with_no_output.txt")
       cat(date(), file = status.file.name)
       cat("\t", file = status.file.name, append = TRUE)
-      ## cat(msg, file = status.file.name, append = TRUE)
-      ## cat("\n", file = status.file.name, append = TRUE)
 
 
       msg <- sprintf("Log file [ %s ] created.", status.file.name)
@@ -218,7 +226,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
 
   for (i in 1:nVariant) {
     if (i > 10 && is.debug.mode()) {
-      cat("DEBUG....")
+      cat("DEBUG skipped ", i, "th variant ..\n")
       next
     }
     mycat("Process ", i, " th variant: ", gene[i], "\n")
@@ -227,7 +235,11 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       next
     }
     for (type in c("additive", "recessive", "dominant")) {
+      ## encode genotypes
       pheno$gt <- convert_gt(geno[i,], type)
+
+      ## impute missing genotypes
+      pheno$gt[is.na(pheno$gt)] <- 2
 
       ## skip this site when the genotypes are monomorphic
       if (length(unique(pheno$gt)[!is.na(unique(pheno$gt))]) <= 1) {
@@ -236,12 +248,25 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
         next
       }
 
-      ## impute missing genotypes
-      pheno$gt[is.na(pheno$gt)] <- mean(pheno$gt, na.rm = TRUE)
 
+      ## fit alternative model
       alt.model <- paste0(null.model, " + gt")
       if (isBinary) {
-        alt <- glmer(as.formula(alt.model), data = pheno, family = "binomial")
+        alt <- tryCatch(
+            {
+              alt <- glmer(as.formula(alt.model), data = pheno, family = "binomial")
+            },
+            error = function(err) {
+              print(str(err))
+              print(err)
+              msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+              ## msg <- paste("Exit failed", msg, sep = " ")
+              return(list(returncode = 1, message = msg, error = err))
+            })
+        if (is.list(alt) && alt$returncode == 1) {
+          ## refit using relaxed numerical approximation (nAGQ = 0)
+          alt <- glmer(as.formula(alt.model), data = pheno, family = "binomial", nAGQ = 0)
+        }
       } else {
         alt <- lmer(as.formula(alt.model), data = pheno, REML = FALSE)
       }
@@ -257,10 +282,30 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       ret[i, type] <- pval
     }
     ret[i, "TDT"] <- NA
+    ret[i, "lethal"] <- NA
   }
+
   ret$REF <- rowSums(geno == 0, na.rm = TRUE)
   ret$HET <- rowSums(geno == 1, na.rm = TRUE)
   ret$VAR <- rowSums(geno == 2, na.rm = TRUE)
+
+  if (isBinary) {
+    ret$Penetrance_REF <- apply(geno, 1, function(x) {idx <- x==0; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
+    ret$Penetrance_HET <- apply(geno, 1, function(x) {idx <- x==1; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
+    ret$Penetrance_ALT <- apply(geno, 1, function(x) {idx <- x==2; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
+  }
+  ret$Semidominance <- apply(geno, 1, function(x) {
+    idx <- x == 0; m0 <- mean(as.numeric(pheno[idx, pheno.name]), na.rm = TRUE)
+    idx <- x == 1; m1 <- mean(as.numeric(pheno[idx, pheno.name]), na.rm = TRUE)
+    idx <- x == 2; m2 <- mean(as.numeric(pheno[idx, pheno.name]), na.rm = TRUE)
+    ## cat(m0, m1,m2, "\n")
+    ret <- (m0 - m1) / (m0 - m2)
+    if (!is.na(ret)) {
+      if (ret > 1) { ret <- 1}
+      if (ret < 0) { ret <- 0}
+    }
+    ret
+  })
   head(ret)
 
   write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
