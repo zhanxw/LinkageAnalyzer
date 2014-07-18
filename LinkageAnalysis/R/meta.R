@@ -194,9 +194,10 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     vcf <- vcf.add.sample(vcf, tmp)
   }
 
+
   # prepare genotype data
   geno <- vcf$GT[, g3.name]  # G3 genotypes
-  geno.g2 <- vcf$GT[, g2.name]
+  ## geno.g2 <- vcf$GT[, g2.name]
   nVariant <- nrow(geno)
 
   numSex <- length(unique(pheno$sex))
@@ -235,6 +236,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       next
     }
     for (type in c("additive", "recessive", "dominant")) {
+      mycat("Perform ", type, " test.\n")
       ## encode genotypes
       pheno$gt <- convert_gt(geno[i,], type)
 
@@ -263,21 +265,47 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
               ## msg <- paste("Exit failed", msg, sep = " ")
               return(list(returncode = 1, message = msg, error = err))
             })
-        if (is.list(alt) && alt$returncode == 1) {
-          ## refit using relaxed numerical approximation (nAGQ = 0)
-          alt <- glmer(as.formula(alt.model), data = pheno, family = "binomial", nAGQ = 0)
-        }
       } else {
         alt <- lmer(as.formula(alt.model), data = pheno, REML = FALSE)
       }
 
-      pval <- anova(null, alt)$"Pr(>Chisq)"[2]
-      if (is.na(pval)) {
-        pval <- 1
-      }
-      direction <- fixef(alt)["gt"] > 0  # TRUE means protective effect, FALSE means harmful effect (desired)
-      if (!is.na(direction)) {
-        pval <- convert_tail(direction, pval, tail)
+      if (is.list(alt) && alt$returncode == 1) {
+        mycat("Refit alternative model using reduced data and Wald test\n")
+        tmp <- ddply(pheno, .(fid), function(x){
+          c(numGT = length(unique(x$gt)))})
+        tmp <- subset(tmp, numGT == 1)$fid
+        reduced.pheno <- subset (pheno, !fid %in% tmp )
+        reduced.model <- str_replace(alt.model, "\\(1\\|fid\\)", "fid")
+        if (length(unique(reduced.pheno$fid)) == 1) {
+          reduced.model <- str_replace(reduced.model, "\\+ fid", "")
+        }
+        if (nrow(reduced.pheno) > 0) {
+          if (isBinary) {
+            reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
+            alt <- glm(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
+          } else {
+            alt <- lm(as.formula(reduced.model), data = reduced.pheno)
+          }
+          idx <- which(colnames(summary(alt)$coefficients) == "Pr(>|t|)" |
+                       colnames(summary(alt)$coefficients) == "Pr(>|z|)")
+          pval <- summary(alt)$coefficients["gt", idx]
+          diretion <- coef(alt)["gt"] > 0
+          if (!is.na(direction)) {
+            pval <- convert_tail(direction, pval, tail)
+          }
+        } else {
+          pval <- 1
+        }
+      } else {
+        ## no error occurred, using tradition anova tests
+        pval <- anova(null, alt)$"Pr(>Chisq)"[2]
+        if (is.na(pval)) {
+          pval <- 1
+        }
+        direction <- fixef(alt)["gt"] > 0  # TRUE means protective effect, FALSE means harmful effect (desired)
+        if (!is.na(direction)) {
+          pval <- convert_tail(direction, pval, tail)
+        }
       }
       ret[i, type] <- pval
     }

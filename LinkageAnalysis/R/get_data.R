@@ -567,18 +567,19 @@ vcf.add.sample <- function(vcf, sampleName) {
   ret <- vcf
   n <- length(sampleName)
 
-  tmp <- vcf$GT[,rep(1, n)]
+  tmp <- vcf$GT[,rep(1, n), drop = FALSE]
   tmp[] <- NA
   colnames(tmp) <- sampleName
   ret$GT <- cbind(vcf$GT, tmp)
 
-  ref.idx <- which (names(vcf)  == "REF")[-1] ## skip first REF (column 3)
-  tmp <- vcf[[ref.idx]][,rep(1, n)]
+  ## skip first REF (column 3), and use the
+  ref.idx <- which (names(vcf)  == "REF")[-1]
+  tmp <- vcf[[ref.idx]][,rep(1, n), drop = FALSE]
   tmp[] <- NA
   colnames(tmp) <- sampleName
-  ret$REF <- cbind(vcf$REF, tmp)
+  ret[[ref.idx]] <- cbind(vcf[[ref.idx]], tmp)
 
-  tmp <- vcf$VAR[,rep(1, n)]
+  tmp <- vcf$VAR[,rep(1, n), drop = FALSE]
   tmp[] <- NA
   colnames(tmp) <- sampleName
   ret$ALT <- cbind(vcf$ALT, tmp)
@@ -602,13 +603,11 @@ vcf.delete.sample.by.index <- function(vcf, index) {
   vcf
 }
 
-
 vcf.summarize <- function(vcf) {
   nvar <- length(vcf$CHROM)
   nsample <- ncol(vcf$GT)
   cat("VCF contains ", nvar, " variants and ", nsample, " samples\n")
 }
-
 
 ped.summarize <- function(ped) {
   fam <- sort(unique(ped$fid))

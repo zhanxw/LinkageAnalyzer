@@ -1,6 +1,8 @@
 NextVersion
 * compute lethal p-value in meta.link
 * by default, draw manhattan plot and distribution plot in meta.link()
+2.1.3
+* fix lme4 crashing problem use fixed effect model (some pedigrees cannot be fit, e.g one family are all affected and all REF genotypes, then random family effect and fixed genotype effect may not be identified)
 2.1.2
 * fix non-positive definite predictors in meta.single by tuning nAGQ
 * impute missing genotype to REF in meta.link
