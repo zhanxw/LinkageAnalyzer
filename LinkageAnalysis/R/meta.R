@@ -85,6 +85,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   }
 
   mycat <- function(...) {
+    cat(...)
     cat(..., file = log.file, append = TRUE)
   }
 
@@ -185,15 +186,14 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   # for samples in PED but not in VCF, fill their genotype as NA
   tmp <- (setdiff(g3.name, colnames(vcf$GT)))
   if ( length(tmp)> 0) {
-    mycat("WARNING: Genotypes of ", length(tmp), " G3 mice not in VCF\n")
+    mycat("WARNING: Genotypes of ", length(tmp), " G3 mice not in VCF:", tmp, "\n")
     vcf <- vcf.add.sample(vcf, tmp)
   }
   tmp <- (setdiff(g2.name, colnames(vcf$GT)))
   if ( length(tmp) > 0) {
-    mycat("WARNING: Genotypes of ", length(tmp), " G2 mice not in VCF\n")
+    mycat("WARNING: Genotypes of ", length(tmp), " G2 mice not in VCF:", tmp, "\n")
     vcf <- vcf.add.sample(vcf, tmp)
   }
-
 
   # prepare genotype data
   geno <- vcf$GT[, g3.name]  # G3 genotypes
@@ -219,7 +219,22 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   library(lme4)
   if (isBinary) {
     mycat("INFO: Phenotypes are treated as binary\n")
-    null <- glmer(as.formula(null.model), data = pheno, family = "binomial")
+    null <- tryCatch(
+        {
+          glmer(as.formula(null.model), data = pheno, family = "binomial")
+        },
+        error = function(err) {
+          print(str(err))
+          print(err)
+          msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+          ## msg <- paste("Exit failed", msg, sep = " ")
+          return(list(returncode = 1, message = msg, error = err))
+        })
+    if (is.list(null) && null$returncode == 1) {
+      mycat("Refit null model using less covariates\n")
+      null.model <- str_replace(null.model, "\\+ sex", "")
+      null <- glmer(as.formula(null.model), data = pheno, family = "binomial")
+    }
   } else {
     mycat("INFO: Phenotypes are treated as continuous\n")
     null <- lmer(as.formula(null.model), data = pheno, REML = FALSE)
@@ -230,7 +245,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       cat("DEBUG skipped ", i, "th variant ..\n")
       next
     }
-    mycat("Process ", i, " th variant: ", gene[i], "\n")
+    mycat("Process ", i, " out of ", nVariant, " variant : ", gene[i], "\n")
     if (length(unique(geno[i,])) == 1) {
       ## skip mono site
       next
@@ -249,7 +264,6 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
         ret[i, type] <- pval <- 1
         next
       }
-
 
       ## fit alternative model
       alt.model <- paste0(null.model, " + gt")
@@ -279,6 +293,11 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
         if (length(unique(reduced.pheno$fid)) == 1) {
           reduced.model <- str_replace(reduced.model, "\\+ fid", "")
         }
+        reduced.model <- str_replace(reduced.model, "\\(1\\|mother\\)", "mother")
+        if (length(unique(reduced.pheno$mother)) == 1) {
+          reduced.model <- str_replace(reduced.model, "\\+ mother", "")
+        }
+        reduced.pheno$mother <- factor(reduced.pheno$mother)
         if (nrow(reduced.pheno) > 0) {
           if (isBinary) {
             reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
@@ -288,10 +307,16 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
           }
           idx <- which(colnames(summary(alt)$coefficients) == "Pr(>|t|)" |
                        colnames(summary(alt)$coefficients) == "Pr(>|z|)")
-          pval <- summary(alt)$coefficients["gt", idx]
-          diretion <- coef(alt)["gt"] > 0
-          if (!is.na(direction)) {
-            pval <- convert_tail(direction, pval, tail)
+          coef <- summary(alt)$coefficients
+          if ("gt" %in% rownames(coef) ) {
+            pval <- coef["gt", idx]
+            diretion <- coef(alt)["gt"] > 0
+            if (!is.na(direction)) {
+              pval <- convert_tail(direction, pval, tail)
+            }
+          } else{
+            ## glm fitting failed, so set pval to one
+            pval <- 1
           }
         } else {
           pval <- 1
