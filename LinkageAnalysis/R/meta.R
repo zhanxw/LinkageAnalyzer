@@ -300,8 +300,28 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
           reduced.model <- str_replace(reduced.model, "\\+ mother", "")
         }
         reduced.pheno$mother <- factor(reduced.pheno$mother)
-        reduced.model.matrix <- model.matrix(as.formula(reduced.model), reduced.pheno)
-        if ( qr(reduced.model.matrix)$rank > ncol(reduced.model.matrix)) {
+
+        ## check if the model can be fit
+        model.fittable <- TRUE
+        while (model.fittable) {
+          ## check sample size
+          if (nrow(reduced.pheno) == 0) {
+            mycat("Insufficient sample size to fit models, set pvalue as one\n")
+            pval <- 1
+            model.fittable <- FALSE
+            break
+          }
+
+          ## check rank
+          reduced.model.matrix <- model.matrix(as.formula(reduced.model), reduced.pheno)
+          if ( qr(reduced.model.matrix)$rank < ncol(reduced.model.matrix)) {
+            mycat("Insufficient sample size to fit models, set pvalue as one\n")
+            pval <- 1
+            model.fittable <- FALSE
+            break
+          }
+
+          ## try alt model
           if (isBinary) {
             reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
             alt <- glm(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
@@ -319,12 +339,10 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
             }
           } else{
             ## glm fitting failed, so set pval to one
-            mycat("Refit using glm() failed, set pvalue as one")
+            mycat("Refit using glm() failed, set pvalue as one\n")
             pval <- 1
           }
-        } else {
-          mycat("Insufficient sample size to fit models, set pvalue as one")
-          pval <- 1
+          break
         }
       } else {
         ## no error occurred, using tradition anova tests
