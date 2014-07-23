@@ -239,7 +239,9 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     mycat("INFO: Phenotypes are treated as continuous\n")
     null <- lmer(as.formula(null.model), data = pheno, REML = FALSE)
   }
+  mycat("Finished fitting null model\n")
 
+  snapshot("meta.link", "dbg.meta.fit.alt.Rdata")
   for (i in 1:nVariant) {
     if (i > 10 && is.debug.mode()) {
       cat("DEBUG skipped ", i, "th variant ..\n")
@@ -298,7 +300,8 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
           reduced.model <- str_replace(reduced.model, "\\+ mother", "")
         }
         reduced.pheno$mother <- factor(reduced.pheno$mother)
-        if (nrow(reduced.pheno) > 0) {
+        reduced.model.matrix <- model.matrix(as.formula(reduced.model), reduced.pheno)
+        if ( qr(reduced.model.matrix)$rank > ncol(reduced.model.matrix)) {
           if (isBinary) {
             reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
             alt <- glm(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
@@ -310,15 +313,17 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
           coef <- summary(alt)$coefficients
           if ("gt" %in% rownames(coef) ) {
             pval <- coef["gt", idx]
-            diretion <- coef(alt)["gt"] > 0
+            direction <- coef(alt)["gt"] > 0
             if (!is.na(direction)) {
               pval <- convert_tail(direction, pval, tail)
             }
           } else{
             ## glm fitting failed, so set pval to one
+            mycat("Refit using glm() failed, set pvalue as one")
             pval <- 1
           }
         } else {
+          mycat("Insufficient sample size to fit models, set pvalue as one")
           pval <- 1
         }
       } else {
@@ -334,7 +339,17 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       }
       ret[i, type] <- pval
     }
-    ret[i, "TDT"] <- NA
+    ret[i, "TDT"] <- NA     ## TODO: implement this
+
+    ## calculate lethal
+    type <- "lethal"
+    mycat("Perform ", type, " test.\n")
+    ## encode genotypes
+    pheno$gt <- convert_gt(geno[i,], "additive")
+    ## impute missing genotypes
+    pheno$gt[is.na(pheno$gt)] <- 2
+    ## count mother, offspring by their genotypes
+
     ret[i, "lethal"] <- NA
   }
 

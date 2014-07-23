@@ -1,6 +1,9 @@
 NextVersion
 * compute lethal p-value in meta.link
 * by default, draw manhattan plot and distribution plot in meta.link()
+2.1.5
+* fix again. In extreme cases, design matrix will be rank insufficient. Set pvalue = 1 in such case.
+* fix typo
 2.1.4
 * fix again. In extreme case, the pedigree is so small (e.g. 3 mice only) that glm() cannot work
 2.1.3
