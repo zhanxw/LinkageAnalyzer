@@ -82,7 +82,8 @@ crossCheckMotherGenotype <- function(pheno) {
       if (!mom.name %in% pheno$iid ) {
         next
       }
-      if (pheno[ pheno$iid == mom.name, "gt"] != 1) {
+      if (!is.na(pheno[ pheno$iid == mom.name, "gt"]) &&
+          pheno[ pheno$iid == mom.name, "gt"] != 1) {
         pheno[ pheno$iid == mom.name, "gt"] <- 1 ## set to het
         total.fix <- total.fix + 1
       }
