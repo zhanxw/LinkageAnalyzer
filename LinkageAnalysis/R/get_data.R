@@ -243,7 +243,7 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
 
           # write status.file
           status.file.name <- file.path(dirname(log_file),
-                                    "R_jobs_complete_with_no_output.txt")
+                                        "R_jobs_complete_with_no_output.txt")
           cat(date(), file = status.file.name)
           cat("\t", file = status.file.name, append = TRUE)
           cat(msg, file = status.file.name, append = TRUE)
@@ -357,6 +357,7 @@ dichotomize <- function(x, log_file = NULL) {
 }
 
 get.ped <- function(pedFile, pheno = NULL, detect = NULL) {
+  options(stringsAsFactors = FALSE)
   ## read peds
   options(stringsAsFactors = FALSE)
   ped <- read.table(pedFile, header = TRUE, comment.char = "!")
@@ -426,6 +427,7 @@ order.chrom.pos <- function(chrom, pos) {
 }
 
 get.vcf <- function(vcfFile, log_file) {
+  options(stringsAsFactors = FALSE)
   ## read vcfs
   vcf <- readLines(vcfFile)
   vcf <- vcf[!grepl("^##", vcf)]

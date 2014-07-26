@@ -67,6 +67,60 @@ meta.single.link <- function(vcfFile, ## a vector of list
   return(ret)
 }
 
+#' Examine mother-offspring pair and fix mother's genotype by her offsprings.
+#' e.g. mom has VAR offsprings, mom genotype cannot be REF => mom must be HET
+crossCheckMotherGenotype <- function(pheno) {
+  mom <- ddply(pheno, .(mother), function(x) {
+    c(
+        ref = sum(x$gt == 0, na.rm = TRUE),
+        var = sum(x$gt > 0, na.rm = TRUE))
+  })
+  total.fix <- 0
+  for (i in seq_len(nrow(mom))) {
+    mom.name <- mom[i, "mother"]
+    if (mom[i, "var"] > 0) {
+      if (!mom.name %in% pheno$iid ) {
+        next
+      }
+      if (pheno[ pheno$iid == mom.name, "gt"] != 1) {
+        pheno[ pheno$iid == mom.name, "gt"] <- 1 ## set to het
+        total.fix <- total.fix + 1
+      }
+    }
+  }
+  if (total.fix) {
+    cat("Fixed ", total.fix, " mother genotypes. \n")
+  }
+  pheno
+}
+
+countForLethal <- function(pheno) {
+  nHetMom <- nVarFromHetMom <- nUnknownMom <- nVarFromUnknownMom <- 0
+  res <- list()
+  for (i in seq_len(nrow(pheno))) {
+    if (is.na(pheno[i, "gt"]) || pheno[i, "gt"] != 2) { ## we only care VAR
+      next
+    }
+    mom.name <- pheno[i, "mother"]
+    if (!mom.name %in% names(res) ) {
+      res[[mom.name]] <- vector("character", 0)
+    }
+    res[[mom.name]] <- c(res[[mom.name]], pheno[i, "iid"])
+  }
+  for (i in seq_len(length(res))) {
+    idx <- which(mom.name %in%  pheno$iid)
+    if (length(idx) == 0) {
+      # mom has unknown
+      nUnknownMom <- nUnknownMom + 1
+      nVarFromUnknownMom <- nVarFromUnknownMom + length(unique(res[[mom.name]]))
+    } else {
+      nHetMom <- nHetMom + 1
+      nVarFromHetMom <- nVarFromHetMom + length(unique(res[[mom.name]]))
+    }
+  }
+  list(nHetMom, nVarFromHetMom, nUnknownMom, nVarFromUnknownMom)
+}
+
 meta.single.link.impl <- function(vcfFile, ## a vector of list
                                   pedFile, ## a vector of list
                                   pheno.name, ## which phenotype to use
@@ -93,7 +147,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   mycat(paste("Version:", packageVersion("LinkageAnalysis")), "\n")
   mycat(paste("Date:", Sys.time()), "\n")
   mycat(paste("Host:", Sys.info()["nodename"]), "\n")
-  mycat(paste("Call:", deparse(sys.status()$sys.calls[[1]])), "\n")
+  mycat(paste("Call:", deparse(sys.status()$sys.calls[[1]], width.cutoff = 500L)), "\n")
   mycat(paste("Directory:", wd), "\n")
 
   start.time <- Sys.time()
@@ -175,6 +229,22 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
                     lethal = nas, additive = nas, recessive = nas, dominant = nas, TDT = nas,
                     Penetrance_REF = nas, Penetrance_HET = nas, Penetrance_VAR = nas, Semidominance = nas)
   rownames(ret) <- NULL
+
+  # calculate lethal
+  type <- "lethal"
+  mycat("Perform ", type, " test.\n")
+  for (i in seq_len(nrow(ret))) {
+    ## calculate lethal
+    stopifnot(all(vcf$sampleId == ped$iid))
+    ## encode genotypes
+    tmp <- ped
+    tmp$gt <- convert_gt(vcf$GT[i,], "additive")
+    ## check mother genotypes
+    tmp <- crossCheckMotherGenotype(tmp)
+    ## count mother, offspring by their genotypes
+    tmp <- countForLethal(tmp)
+    ret[i, "lethal"] <- do.call(single.lethal.getPvalue, tmp)
+  }
 
   # read data
   # get G3 mice
@@ -269,82 +339,26 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
 
       ## fit alternative model
       alt.model <- paste0(null.model, " + gt")
-      if (isBinary) {
+      run.mixed.effect.alt.model <- function(isBinary, alt.model, pheno) {
         alt <- tryCatch(
             {
-              alt <- glmer(as.formula(alt.model), data = pheno, family = "binomial")
+              if (isBinary) {
+                alt <- glmer(as.formula(alt.model), data = pheno, family = "binomial")
+              } else {
+                alt <- lmer(as.formula(alt.model), data = pheno, REML = FALSE)
+              }
             },
             error = function(err) {
-              print(str(err))
-              print(err)
+              mycat("Fit [ ", alt.model, " binary=", isBinary, " ] failed ", str(err), "\n")
+              ## print(err)
               msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
-              ## msg <- paste("Exit failed", msg, sep = " ")
-              return(list(returncode = 1, message = msg, error = err))
+              return(list(returncode = 1, message = msg, error = err, isBinary = isBinary, alt.model = alt.model))
             })
-      } else {
-        alt <- lmer(as.formula(alt.model), data = pheno, REML = FALSE)
+        alt
       }
+      alt <- run.mixed.effect.alt.model(isBinary, alt.model, pheno)
 
-      if (is.list(alt) && alt$returncode == 1) {
-        mycat("Refit alternative model using reduced data and Wald test\n")
-        tmp <- ddply(pheno, .(fid), function(x){
-          c(numGT = length(unique(x$gt)))})
-        tmp <- subset(tmp, numGT == 1)$fid
-        reduced.pheno <- subset (pheno, !fid %in% tmp )
-        reduced.model <- str_replace(alt.model, "\\(1\\|fid\\)", "fid")
-        if (length(unique(reduced.pheno$fid)) == 1) {
-          reduced.model <- str_replace(reduced.model, "\\+ fid", "")
-        }
-        reduced.model <- str_replace(reduced.model, "\\(1\\|mother\\)", "mother")
-        if (length(unique(reduced.pheno$mother)) == 1) {
-          reduced.model <- str_replace(reduced.model, "\\+ mother", "")
-        }
-        reduced.pheno$mother <- factor(reduced.pheno$mother)
-
-        ## check if the model can be fit
-        model.fittable <- TRUE
-        while (model.fittable) {
-          ## check sample size
-          if (nrow(reduced.pheno) == 0) {
-            mycat("Insufficient sample size to fit models, set pvalue as one\n")
-            pval <- 1
-            model.fittable <- FALSE
-            break
-          }
-
-          ## check rank
-          reduced.model.matrix <- model.matrix(as.formula(reduced.model), reduced.pheno)
-          if ( qr(reduced.model.matrix)$rank < ncol(reduced.model.matrix)) {
-            mycat("Insufficient sample size to fit models, set pvalue as one\n")
-            pval <- 1
-            model.fittable <- FALSE
-            break
-          }
-
-          ## try alt model
-          if (isBinary) {
-            reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
-            alt <- glm(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
-          } else {
-            alt <- lm(as.formula(reduced.model), data = reduced.pheno)
-          }
-          idx <- which(colnames(summary(alt)$coefficients) == "Pr(>|t|)" |
-                       colnames(summary(alt)$coefficients) == "Pr(>|z|)")
-          coef <- summary(alt)$coefficients
-          if ("gt" %in% rownames(coef) ) {
-            pval <- coef["gt", idx]
-            direction <- coef(alt)["gt"] > 0
-            if (!is.na(direction)) {
-              pval <- convert_tail(direction, pval, tail)
-            }
-          } else{
-            ## glm fitting failed, so set pval to one
-            mycat("Refit using glm() failed, set pvalue as one\n")
-            pval <- 1
-          }
-          break
-        }
-      } else {
+      if (! (is.list(alt) && alt$returncode == 1)) {
         ## no error occurred, using tradition anova tests
         pval <- anova(null, alt)$"Pr(>Chisq)"[2]
         if (is.na(pval)) {
@@ -354,21 +368,76 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
         if (!is.na(direction)) {
           pval <- convert_tail(direction, pval, tail)
         }
+      } else {
+        mycat("Refit alternative model using reduced data and Wald test\n")
+
+        run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno) {
+          tmp <- ddply(pheno, .(fid), function(x) {
+            c(numGT = length(unique(x$gt)))})
+          tmp <- subset(tmp, numGT == 1)$fid
+          reduced.pheno <- subset (pheno, !fid %in% tmp )
+          reduced.model <- str_replace(alt.model, "\\(1\\|fid\\)", "fid")
+          if (length(unique(reduced.pheno$fid)) == 1) {
+            reduced.model <- str_replace(reduced.model, "\\+ fid", "")
+          }
+          reduced.model <- str_replace(reduced.model, "\\(1\\|mother\\)", "mother")
+          if (length(unique(reduced.pheno$mother)) == 1) {
+            reduced.model <- str_replace(reduced.model, "\\+ mother", "")
+          }
+          reduced.pheno$mother <- factor(reduced.pheno$mother)
+
+          ## check if the model can be fit
+          model.fittable <- TRUE
+          while (model.fittable) {
+            ## check sample size
+            if (nrow(reduced.pheno) == 0) {
+              mycat("Insufficient sample size to fit models, set pvalue as one\n")
+              pval <- 1
+              model.fittable <- FALSE
+              break
+            }
+
+            ## check rank
+            reduced.model.matrix <- model.matrix(as.formula(reduced.model), reduced.pheno)
+            if ( qr(reduced.model.matrix)$rank < ncol(reduced.model.matrix)) {
+              mycat("Insufficient sample size to fit models, set pvalue as one\n")
+              pval <- 1
+              model.fittable <- FALSE
+              break
+            }
+
+            ## try alt model
+            if (isBinary) {
+              reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
+              alt <- glm(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
+            } else {
+              alt <- lm(as.formula(reduced.model), data = reduced.pheno)
+            }
+            idx <- which(colnames(summary(alt)$coefficients) == "Pr(>|t|)" |
+                         colnames(summary(alt)$coefficients) == "Pr(>|z|)")
+            coef <- summary(alt)$coefficients
+            if ("gt" %in% rownames(coef) ) {
+              pval <- coef["gt", idx]
+              direction <- coef(alt)["gt"] > 0
+              if (!is.na(direction)) {
+                pval <- convert_tail(direction, pval, tail)
+              }
+            } else{
+              ## glm fitting failed, so set pval to one
+              mycat("Refit using glm() failed, set pvalue as one\n")
+              pval <- 1
+            }
+            break
+          }
+          pval
+        }
+        pval <- run.fixed.effect.alt.model(isBinary, alt.model, pheno)
+
       }
       ret[i, type] <- pval
     }
     ret[i, "TDT"] <- NA     ## TODO: implement this
 
-    ## calculate lethal
-    type <- "lethal"
-    mycat("Perform ", type, " test.\n")
-    ## encode genotypes
-    pheno$gt <- convert_gt(geno[i,], "additive")
-    ## impute missing genotypes
-    pheno$gt[is.na(pheno$gt)] <- 2
-    ## count mother, offspring by their genotypes
-
-    ret[i, "lethal"] <- NA
   }
 
   ret$REF <- rowSums(geno == 0, na.rm = TRUE)

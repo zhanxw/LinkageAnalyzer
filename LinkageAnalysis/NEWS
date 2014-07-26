@@ -1,6 +1,9 @@
 NextVersion
+* by default, draw manhattan plot in meta.link()
+* by default, draw distribution plot in meta.link()
+2.1.7
+* auto-fix mother genotype during lethal calculation
 * compute lethal p-value in meta.link
-* by default, draw manhattan plot and distribution plot in meta.link()
 2.1.6
 * fix again... model.matrix() does not like empty dataset, so add a pre-check. 
 2.1.5

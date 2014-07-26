@@ -4,23 +4,32 @@
 # HET, REF:HET:VAR=1:2:1
 
 
-## # this function runs random sampling to find the number of G3 mice with VAR
-## # genotype
-## single_sample <- function(mother_gt, n_G3, n_trial) {
-##   if (is.null(mother_gt) || is.na(mother_gt)) {
-##     mother_gt <- "unknown"
-##   }  # corresponding G2 data does not exist
-##   if (mother_gt == "REF") {
-##     return(0)
-##   }
-##   if (mother_gt == "HET") {
-##     prob <- 1/4
-##   }
-##   if (!mother_gt %in% c("REF", "HET")) {
-##     prob <- 1/8
-##   }  # unknown, FAILED, FALSE
-##   return(rbinom(n = n_trial, size = n_G3, prob = prob))
-## }
+#' Calculate single lethal p-value
+#' @param nvarFromHet counts of parents with HET
+#' @param nvarHet     counts of offsprings with VAR and with HET mom
+#' @param nvarFromUnknown counts of parents with Unknown genotype
+#' @param nvarUnknown     counts of offsprings with VAR and with Unknown mom
+single.lethal.getPvalue <- function(nvarFromHet, nFromHet,
+                                    nvarFromUnknown, nFromUnknown) {
+  #' g2Unknown can be ungenotyped or g2 = VAR
+  #' @param nvarFromHet
+  getP <- function(nvarFromHet, nFromHet, nvarFromUnknown, nFromUnknown) {
+    ##dbinom(nvarFromHet, nFromHet, 0.25) * getP.g2unknown(nvarFromUnknown, nFromUnknown)
+    dbinom(nvarFromHet, nFromHet, 0.25) * dbinom(nvarFromUnknown, nFromUnknown, 0.125)
+  }
+
+  nvar <- nvarFromHet + nvarFromUnknown
+  p <- 0.
+  for (i in seq(0, nvar)) {
+    j <- seq(0, i)
+    tmp <- getP(j, nFromHet, i - j , nFromUnknown)
+    ## print(i)
+    ## print(j)
+    ## print(tmp)
+    p <- p + sum(tmp)
+  }
+  p
+}
 
 # this function tests whether each gene is a homozygous lethal with G2 data the
 # H0 is a gene is not homozygous lethal
@@ -28,26 +37,6 @@ single_lethal <- function(genotype, genes, phenotype, G2) {
   if (FALSE) {
     wd <- getwd()
     save(file = "single_lethal.Rdata", list = ls())
-  }
-
-  ## g2Unknown can be ungenotyped or g2 = VAR
-  getP <- function(nvarFromHet, nFromHet, nvarFromUnknown, nFromUnknown) {
-    ##dbinom(nvarFromHet, nFromHet, 0.25) * getP.g2unknown(nvarFromUnknown, nFromUnknown)
-    dbinom(nvarFromHet, nFromHet, 0.25) * dbinom(nvarFromUnknown, nFromUnknown, 0.125)
-  }
-
-  getPval <- function(nvarFromHet, nFromHet, nvarFromUnknown, nFromUnknown) {
-    nvar <- nvarFromHet + nvarFromUnknown
-    p <- 0.
-    for (i in seq(0, nvar)) {
-      j <- seq(0, i)
-      tmp <- getP(j, nFromHet, i - j , nFromUnknown)
-      ## print(i)
-      ## print(j)
-      ## print(tmp)
-      p <- p + sum(tmp)
-    }
-    p
   }
 
   lethal <- rep(1, dim(genotype)[1])
@@ -99,48 +88,10 @@ single_lethal <- function(genotype, genes, phenotype, G2) {
       ## print(table(gt[phenotype$mother == mother], exclude =  NULL))
     }
     ## print(c(nVarFromHet, nFromHet, nVarFromUnknown, nFromUnknown))
-    lethal[i] <- getPval(nVarFromHet, nFromHet, nVarFromUnknown, nFromUnknown)
+    lethal[i] <- single.lethal.getPvalue(nVarFromHet, nFromHet, nVarFromUnknown, nFromUnknown)
   }
   return(lethal)
 }
-
-## ##original version
-## single_lethal <- function(genotype, genes, phenotype, G2, n_trial) {
-##   lethal <- rep(1, dim(genotype)[1])
-##   mothers <- as.vector(unique(phenotype$mother))
-
-##   for (i in 1:dim(genotype)[1]) {
-##     # skip genes with too many invalid values or on chrX
-##     gt <- unlist(genotype[i, ])
-##     gt <- convert_gt(gt, "recessive")
-##     if (sum(!is.na(gt)) < 3 || genes$chr[i] == "X") {
-##       next
-##     }
-
-##     trials <- rep(0, n_trial)  # the total number of G3 VAR mice in all trials
-
-##     # random sample for each mother and aggregate
-##     for (mother in mothers) {
-##       mother_gt <- G2[paste(genes$Gene[i], genes$Coordination[i]), mother]
-##       # in case G2 genotype is unknown, if any child is VAR, the mother is definitely
-##       # HET
-##       if (any(gt[phenotype$mother == mother & !is.na(gt)] == 2)) {
-##         mother_gt <- "HET"
-##       }
-##       mother_G3_VAR <- single_sample(mother_gt,
-##                                      sum(phenotype$mother == mother & !is.na(gt)),
-##                                      n_trial)
-##       trials <- trials + mother_G3_VAR
-##       ## cat("mother = ", mother, " ", mother_gt, "\n")
-##       ## cat("n = ", length(gt[phenotype$mother == mother]), " nvar = ", sum(gt[phenotype$mother == mother] == 2), "\n")
-##       ## print(table(gt[phenotype$mother == mother]))
-##     }
-
-##     lethal[i] <- sum(trials <= sum(gt[!is.na(gt)] == 2))/n_trial
-##   }
-
-##   return(lethal)
-## }
 
 # this function runs random sampling to find the number of G3 mice with desired
 # genotype
@@ -195,7 +146,7 @@ calculate.prob <- function (obs, size, p) {
   n.obs <- sum (obs)
   for (i in 1:N) {
     ret [[i]] <- dbinom (0:n.obs, size = size [i], p = p [i])
-   }
+  }
 
   combine.prob <- function (v1, v2) {
     stopifnot (is.numeric (v1))
@@ -207,28 +158,28 @@ calculate.prob <- function (obs, size, p) {
     ret <- rep (NA, n)
     for (i in 1:n) {
       ret [i] <- sum (v1 [1:i] * rev (v2 [1:i]))
-     }
+    }
     ret
-   }
+  }
   ## combine.prob (ret [[1]], ret [[2]])
   reduce.prob <- function (l) {
     stopifnot (is.list (l))
     n <- length (l)
     if (n < 2) {
       return (l [[1]])
-     }
+    }
     v <- NULL
     for (i in 1: (n-1)) {
       if (i == 1) {
         v <- combine.prob (ret [[i]], ret [[i + 1]])
-       } else {
+      } else {
         v <- combine.prob (v, ret [[i+1]])
-       }
+      }
       #    cat (i, " : ")
       #    print (v)
-     }
+    }
     return (v)
-   }
+  }
   tmp <- reduce.prob (ret)
   sum (tmp)
 }
@@ -312,3 +263,23 @@ double_lethal <- function(data, input, i, j) {
   ## }
   return(pval)
 }
+
+##################################################
+## OBSOLETE CODE
+## # this function runs random sampling to find the number of G3 mice with VAR
+## # genotype
+## single_sample <- function(mother_gt, n_G3, n_trial) {
+##   if (is.null(mother_gt) || is.na(mother_gt)) {
+##     mother_gt <- "unknown"
+##   }  # corresponding G2 data does not exist
+##   if (mother_gt == "REF") {
+##     return(0)
+##   }
+##   if (mother_gt == "HET") {
+##     prob <- 1/4
+##   }
+##   if (!mother_gt %in% c("REF", "HET")) {
+##     prob <- 1/8
+##   }  # unknown, FAILED, FALSE
+##   return(rbinom(n = n_trial, size = n_G3, prob = prob))
+## }
