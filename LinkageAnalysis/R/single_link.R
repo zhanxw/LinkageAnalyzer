@@ -142,8 +142,25 @@ single.link.impl <- function(main_file = "", G2_file = "",
       data <- data.frame(pt = pt, sex = sex, gt = convert_gt(gt, type), mother = mother)
       data <- data[!is.na(data$gt), ]
       if (length(unique(data$gt)) > 1) {
-        pval <- anova_test(data, bin, test, silent, fns$log_file, tail)$pvalue
-        sig_gene[i, type] <- pval
+        ## use tryCatch to avoid crashing
+        pval <- tryCatch(
+            {
+              pval <- anova_test(data, bin, test, silent, fns$log_file, tail)$pvalue
+            },
+            error = function(err) {
+              snapshot("single.link.impl", "debug.single.link.impl.Rdata")
+              print(str(err))
+              print(err)
+              msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+              msg <- paste("Fitting failed", msg, sep = " ")
+              report("m", msg, log.file)
+              return(list(returncode = 1, message = msg))
+            })
+        if (is.list(pval) && pval$returncode == 1) {
+          sig_gene[i, type] <- pval
+        } else {
+          sig_gene[i, type] <- pval
+        }
         if (sig_gene[i,type] == 0) {
           sig_gene[i,type]=1e-300
         }

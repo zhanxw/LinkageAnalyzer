@@ -206,7 +206,26 @@ double.link.impl <- function(main_file, G2_file = "", output = ".", test = "woG2
           # cat("null.ok = ", null.model.ok, "\n")
           ## cat('pval = ', pval , "\n")
         } else {
-          pval <- anova_test(data, input$bin, test, silent, fns$log_file, tail, null.model = null.model)$pvalue
+          ## use tryCatch to avoid crashing
+          pval <- tryCatch(
+              {
+                pval <- anova_test(data, input$bin, test, silent, fns$log_file, tail, null.model = null.model)$pvalue
+              },
+              error = function(err) {
+                snapshot("single.link.impl", "debug.single.link.impl.Rdata")
+                print(str(err))
+                print(err)
+                msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+                msg <- paste("Fitting failed", msg, sep = " ")
+                report("m", msg, log.file)
+                return(list(returncode = 1, message = msg))
+              })
+          if (is.list(pval) && pval$returncode == 1) {
+            ## error occured
+            pval <- 1
+          }
+
+          sig_gene[i, type] <- pval
           ## cat('pval = ', pval , "\n")
           sig[[type]][i, j] <- pval
           sig[[type]][j, i] <- sig[[type]][i, j]

@@ -273,11 +273,23 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   ## geno.g2 <- vcf$GT[, g2.name]
   nVariant <- nrow(geno)
 
-  numSex <- length(unique(pheno$sex))
-  if (numSex == 1){
-    null.model <- sprintf("%s ~ 1 + (1|fid) ", pheno.name)
-  } else if (numSex >= 2) {
-    null.model <- sprintf("%s ~ 1 + (1|fid) + sex", pheno.name)
+
+  null.model <- sprintf("%s ~ 1 ", pheno.name)
+  if (length(unique(pheno$fid)) > 1) {
+    null.model <- paste0(null.model, " + (1|fid) ")
+  } else {
+    mycat("INFO: 1 family detected\n")
+  }
+  if (length(unique(pheno$sex)) > 1) {
+    null.model <- paste0(null.model, " + sex")
+  } else {
+    mycat("INFO: only one gender detected\n")
+  }
+
+  if (grepl("\\(", null.model)) {
+    has.random.effect <- TRUE
+  } else {
+    has.random.effect <- FALSE
   }
 
   if (test == "wG2") {
@@ -294,7 +306,11 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     mycat("INFO: Phenotypes are treated as binary\n")
     null <- tryCatch(
         {
-          glmer(as.formula(null.model), data = pheno, family = "binomial")
+          if (has.random.effect) {
+            glmer(as.formula(null.model), data = pheno, family = "binomial")
+          } else {
+            glm(as.formula(null.model), data = pheno, family = "binomial")
+          }
         },
         error = function(err) {
           print(str(err))
@@ -306,11 +322,19 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     if (is.list(null) && null$returncode == 1) {
       mycat("Refit null model using less covariates\n")
       null.model <- str_replace(null.model, "\\+ sex", "")
-      null <- glmer(as.formula(null.model), data = pheno, family = "binomial")
+      if (has.random.effect) {
+        null <- glmer(as.formula(null.model), data = pheno, family = "binomial")
+      } else {
+        null <- glm(as.formula(null.model), data = pheno, family = "binomial")
+      }
     }
   } else {
     mycat("INFO: Phenotypes are treated as continuous\n")
-    null <- lmer(as.formula(null.model), data = pheno, REML = FALSE)
+    if (has.random.effect) {
+      null <- lmer(as.formula(null.model), data = pheno, REML = FALSE)
+    } else {
+      null <- lm(as.formula(null.model), data = pheno)
+    }
   }
   mycat("Finished fitting null model\n")
 
@@ -367,7 +391,11 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
             })
         alt
       }
-      alt <- run.mixed.effect.alt.model(isBinary, alt.model, pheno)
+      if (has.random.effect) {
+        alt <- run.mixed.effect.alt.model(isBinary, alt.model, pheno)
+      } else {
+        alt <- list(returncode = 1, message = "no random effect")
+      }
 
       if (! (is.list(alt) && alt$returncode == 1)) {
         ## no error occurred, using tradition anova tests

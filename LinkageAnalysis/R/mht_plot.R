@@ -182,10 +182,11 @@ plot.manhattan <- function(d, main = "") {
 
   d.highlight <- subset(d, Pval < alpha)
   print(d.highlight)
+  last.chrom.idx <- -1
   for (i in seq_len(nrow(d.highlight))) {
     ## print(i)
-
-    x <- chrom.left[match(d.highlight$Chrom[i], mm10.chroms$chrom)] + d.highlight$Position[i]
+    chrom.idx <- match(d.highlight$Chrom[i], mm10.chroms$chrom)
+    x <- chrom.left[chrom.idx] + d.highlight$Position[i]
     y <- -log10(d.highlight$Pval[i])
 
     print(x)
@@ -196,10 +197,15 @@ plot.manhattan <- function(d, main = "") {
     }
 
     ## jitter lables
-    tmp.x <- runif(1, min = -3e7, max = 3e7)
+    if (chrom.idx == last.chrom.idx) {
+      tmp.x <- tmp.x + 3e7 ## make points scatters on x
+    } else {
+      tmp.x <- 0
+    }
     tmp.y <- runif(1, min = 0.1, max = 2.5)
     lines(c(x, x + tmp.x), y + c(0.1, tmp.y), col = addAlpha("brown1"), lty = "dotted")
     ## adj = (0, 0.5) = (top, middle)
     text(x + tmp.x, y + 0.1 + tmp.y, labels = d.highlight$Gene[i], srt = 90, cex= 0.75, adj = c(0, 0.5))
+    last.chrom.idx <- chrom.idx
   }
 }
