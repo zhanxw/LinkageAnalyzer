@@ -131,11 +131,10 @@ single.link.impl <- function(main_file = "", G2_file = "",
       }
       effective[i] <- FALSE
       next
-    } else {
-      if (silent == F) {
-        report("m", paste("# remaining mice", sum(!is.na(convert_gt(gt, "additive")))),
-               fns$log_file)
-      }
+    }
+    if (silent == F) {
+      report("m", paste("# remaining mice", sum(!is.na(convert_gt(gt, "additive")))),
+             fns$log_file)
     }
 
     # glmer anova test of full model and reduced model for each of the three types
@@ -145,7 +144,7 @@ single.link.impl <- function(main_file = "", G2_file = "",
       if (length(unique(data$gt)) > 1) {
         pval <- anova_test(data, bin, test, silent, fns$log_file, tail)$pvalue
         sig_gene[i, type] <- pval
-        if (sig_gene[i,type]==0) {
+        if (sig_gene[i,type] == 0) {
           sig_gene[i,type]=1e-300
         }
       }

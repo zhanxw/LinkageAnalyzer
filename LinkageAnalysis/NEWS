@@ -1,4 +1,4 @@
-NextVersion
+2.1.8
 * by default, draw manhattan plot in meta.link()
 * by default, draw distribution plot in meta.link()
 2.1.7

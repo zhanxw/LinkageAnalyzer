@@ -29,7 +29,7 @@ meta.single.link <- function(vcfFile, ## a vector of list
                              silent = T,
                              tail = "decreasing",
                              prefix = "",
-                             plot.it = FALSE,
+                             plot.it = TRUE,
                              transform.pheno = NULL) {
   log.file <- filename(output, prefix)$log_file
   ret <- tryCatch(
@@ -76,6 +76,7 @@ crossCheckMotherGenotype <- function(pheno) {
         var = sum(x$gt > 0, na.rm = TRUE))
   })
   total.fix <- 0
+  fixed.mom.id <- vector("character", 0)
   for (i in seq_len(nrow(mom))) {
     mom.name <- mom[i, "mother"]
     if (mom[i, "var"] > 0) {
@@ -86,11 +87,12 @@ crossCheckMotherGenotype <- function(pheno) {
           pheno[ pheno$iid == mom.name, "gt"] != 1) {
         pheno[ pheno$iid == mom.name, "gt"] <- 1 ## set to het
         total.fix <- total.fix + 1
+        fixed.mom.id <- c(fixed.mom.id, mom.name)
       }
     }
   }
   if (total.fix) {
-    cat("Fixed ", total.fix, " mother genotypes. \n")
+    cat("INFO: Fixed ", total.fix, " mother genotypes: ", unique(fixed.mom.id), "\n")
   }
   pheno
 }
@@ -313,6 +315,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   mycat("Finished fitting null model\n")
 
   snapshot("meta.link", "dbg.meta.fit.alt.Rdata")
+  dist.plots <- list()
   for (i in 1:nVariant) {
     if (i > 10 && is.debug.mode()) {
       cat("DEBUG skipped ", i, "th variant ..\n")
@@ -336,6 +339,13 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
         mycat("Skip monomorphic site under ", type, " model\n")
         ret[i, type] <- pval <- 1
         next
+      }
+
+      # record graph
+      if (type == "additive") {
+        ## cat ("store graph\n")
+        dist.title <- sprintf("%s (%s:%s)", gene[i], as.character(ret$chr[i]), as.character(ret$pos[i]))
+        dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, dist.title)
       }
 
       ## fit alternative model
@@ -438,7 +448,6 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       ret[i, type] <- pval
     }
     ret[i, "TDT"] <- NA     ## TODO: implement this
-
   }
 
   ret$REF <- rowSums(geno == 0, na.rm = TRUE)
@@ -464,6 +473,25 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   })
   head(ret)
 
+  if (plot.it) {
+    ## draw linkage plot
+    linkage.plot.pdf <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
+    pdf(file = linkage.plot.pdf, height = 8, width = 11)
+    save(list = ls(), file = "plot.it.dbg")
+    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$additive), main = "additive")
+    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "recessive")
+    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$dominant), main = "dominant")
+    dev.off()
+
+    dist.plot.pdf <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = ""))
+    library(gridExtra)
+    ## pdf(file = dist.plot.pdf, height = 8, width = 8)
+    tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=2, ncol=2)))
+    ## print(ml)
+    ##dev.off()
+    ggsave(dist.plot.pdf, tmp)
+    ## ggsave(dist.plot.pdf, ml, width = 8, height = 8)
+  }
   write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
 
   ## analysis <- list(test = test, detect = detect, tail = tail, prefix = prefix,
@@ -487,3 +515,10 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   mycat("Exit successfully\n")
   return(list(returncode = 0, message = "", result = ret))
 }
+
+
+## tmp <- pheno[, c("fid", "iid", "mother", "pheno", "gt")]
+## tmp$fid <- factor(tmp$fid)
+## tmp$mother <- factor(tmp$mother)
+## g <- ggplot(data = tmp, aes(x = "gt", y = "pheno", col = "mother", pch = "fid")) + geom_point(position = "jitter")
+## ggsave(filename = "tmp.pdf", plot = g, width = 7, height = 7)

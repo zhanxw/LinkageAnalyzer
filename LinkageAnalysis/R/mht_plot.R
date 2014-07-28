@@ -82,8 +82,8 @@ mht <- function(genes, sig_gene, type, log_file, test, bin, effective, genotype 
         trial <- trial + 1
         if ((!y_attempt %in% occupied[max(1, length(occupied) - 4):length(occupied)]) ||
             trial > 20) {
-            break
-          }  # find a good position or fail to find one too many times
+          break
+        }  # find a good position or fail to find one too many times
       }
 
       occupied <- c(occupied, y_attempt)  # add this gene y pos to the occupied list
@@ -118,4 +118,88 @@ mht <- function(genes, sig_gene, type, log_file, test, bin, effective, genotype 
   }
 
   return(bonferroni)
+}
+
+#' Draw manhattan plot from @param d
+plot.manhattan <- function(d, main = "") {
+  snapshot("plot.manhattan", "plot.Rdata")
+  stopifnot(is.data.frame(d))
+  stopifnot("Chrom" %in% names(d) )
+  stopifnot("Position" %in% names(d) )
+  stopifnot("Pval" %in% names(d) )
+
+  d$Chrom <- as.character(d$Chrom)
+  d$Position <- as.integer(as.character(d$Position))
+  d$Pval <- as.numeric(d$Pval)
+  if (!all(grepl("^chr", d$Chrom))) {
+    d$Chrom = paste("chr", d$Chrom, sep = "")
+  }
+
+  # config
+  mm10.chroms <- data.frame(chrom = paste("chr", seq(19), sep = ""),
+                            length = c(195471971,
+                                182113224,
+                                160039680,
+                                156508116,
+                                151834684,
+                                149736546,
+                                145441459,
+                                129401213,
+                                124595110,
+                                130694993,
+                                122082543,
+                                120129022,
+                                120421639,
+                                124902244,
+                                104043685,
+                                98207768,
+                                94987271,
+                                90702639,
+                                61431566))
+  Chrom.color <- rep(c("red", "blue"), 10)[1:19]
+  stopifnot(all(d$Chrom %in% mm10.chroms$chrom ))
+
+  # start plotting
+  chrom.right <- cumsum(as.numeric(mm10.chroms$length))
+  chrom.left <- c(0, chrom.right[-length(chrom.right)])
+  chrom.mid <- 0.5 * (chrom.right + chrom.left)
+  label <- paste("chr", seq(19), sep = "")
+  xlim <- c(min(chrom.left), max(chrom.right))
+  ylim <- c(0, max(4, -log10(d$Pval), na.rm= TRUE) * 1.1 + 4) # 4: annotate genes
+  offset <- chrom.left[match(d$Chrom, mm10.chroms$chrom)] + d$Position
+  col <- Chrom.color[match(d$Chrom, mm10.chroms$chrom)]
+  plot(offset, -log10(d$Pval), axes = F, xlab = "Genomic location", ylab = "-log10(P)",
+       xlim = xlim, ylim = ylim, col = col, main = main)
+  axis(1, at = chrom.left, label = label, las = 2, lwd = 0, lwd.ticks = 1)
+  axis(2)
+  abline(v = c(0, chrom.right), col = "lightgray")
+
+  alpha <- 0.05
+  num.test <- sum(!is.na(d$Pval))
+  bonferroni <- alpha / num.test
+  abline(h = -log10(alpha), lty = "dotted", col = "lightgray")
+  abline(h = -log10(bonferroni), lty = "dotted", col = "lightgray")
+
+  d.highlight <- subset(d, Pval < alpha)
+  print(d.highlight)
+  for (i in seq_len(nrow(d.highlight))) {
+    ## print(i)
+
+    x <- chrom.left[match(d.highlight$Chrom[i], mm10.chroms$chrom)] + d.highlight$Position[i]
+    y <- -log10(d.highlight$Pval[i])
+
+    print(x)
+    addAlpha <- function(name, alpha = 1) {
+      v <- col2rgb(name)
+      v <- v / 255
+      rgb(v[1], v[2], v[3], alpha)
+    }
+
+    ## jitter lables
+    tmp.x <- runif(1, min = -3e7, max = 3e7)
+    tmp.y <- runif(1, min = 0.1, max = 2.5)
+    lines(c(x, x + tmp.x), y + c(0.1, tmp.y), col = addAlpha("brown1"), lty = "dotted")
+    ## adj = (0, 0.5) = (top, middle)
+    text(x + tmp.x, y + 0.1 + tmp.y, labels = d.highlight$Gene[i], srt = 90, cex= 0.75, adj = c(0, 0.5))
+  }
 }

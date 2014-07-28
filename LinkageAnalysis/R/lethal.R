@@ -243,24 +243,6 @@ double_lethal <- function(data, input, i, j) {
   tmp <- subset(tmp, prob != 0.0)
   pval <- calculate.prob(obs = tmp$numObs, size = tmp$numG3, p = tmp$prob)
 
-  ## obs <- sum((data$gt1 + data$gt2) >= 3)
-  ## ## use a bit of adaptive
-  ## mean <- sum(numG3 * prob)
-  ## var <- sum(numG3 * prob * (1-prob))
-  ## pval.approx <- pnorm( (obs - mean) /sqrt(var) )
-  ## if (is.na(pval.approx)) {
-  ##   #e.g. obs = mean = var = 0,
-  ##   pval <- 1
-  ## } else if (pval.approx > 0.1) {
-  ##   pval <- doubleSample(prob, numG3, obs, 1000)
-  ##   if (pval < 1e-4) {
-  ##     ## this should rarely happen
-  ##     pval <- doubleSample(prob, numG3, obs, 1000000)
-  ##   }
-  ## } else {
-  ##   ## pval <- sum(apply(MonteCarlo, 1, sum) <= obs)/n_trial
-  ##   pval <- doubleSample(prob, numG3, obs, 1000000)
-  ## }
   return(pval)
 }
 
