@@ -136,7 +136,8 @@ plot.manhattan <- function(d, main = "") {
   }
 
   # config
-  mm10.chroms <- data.frame(chrom = paste("chr", seq(19), sep = ""),
+  mm10.num.chroms <- 21
+  mm10.chroms <- data.frame(chrom = c(paste("chr", seq(mm10.num.chroms - 2), sep = ""), "chrX", "chrY"),
                             length = c(195471971,
                                 182113224,
                                 160039680,
@@ -155,15 +156,17 @@ plot.manhattan <- function(d, main = "") {
                                 98207768,
                                 94987271,
                                 90702639,
-                                61431566))
-  Chrom.color <- rep(c("red", "blue"), 10)[1:19]
+                                61431566,
+                                171031299,
+                                91744698))
+  Chrom.color <- rep(c("red", "blue"), 10)[1:mm10.num.chroms]
   stopifnot(all(d$Chrom %in% mm10.chroms$chrom ))
 
   # start plotting
   chrom.right <- cumsum(as.numeric(mm10.chroms$length))
   chrom.left <- c(0, chrom.right[-length(chrom.right)])
   chrom.mid <- 0.5 * (chrom.right + chrom.left)
-  label <- paste("chr", seq(19), sep = "")
+  label <- c(paste("chr", seq(mm10.num.chroms - 2), sep = ""), "chrX", "chrY")
   xlim <- c(min(chrom.left), max(chrom.right))
   ylim <- c(0, max(4, -log10(d$Pval), na.rm= TRUE) * 1.1 + 4) # 4: annotate genes
   offset <- chrom.left[match(d$Chrom, mm10.chroms$chrom)] + d$Position

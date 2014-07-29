@@ -45,7 +45,7 @@ double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
         return(ret)
       },
       error = function(err) {
-        snapshot("double.link.impl", "debug.double.link.impl.Rdata")
+        ## snapshot("double.link.impl", "debug.double.link.impl.Rdata")
         print(str(err))
         print(err)
         msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
@@ -225,7 +225,6 @@ double.link.impl <- function(main_file, G2_file = "", output = ".", test = "woG2
             pval <- 1
           }
 
-          sig_gene[i, type] <- pval
           ## cat('pval = ', pval , "\n")
           sig[[type]][i, j] <- pval
           sig[[type]][j, i] <- sig[[type]][i, j]

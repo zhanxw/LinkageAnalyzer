@@ -105,9 +105,14 @@ get_G2 <- function(file = "", log_file) {
 }
 
 #' @return NULL when criitical error
-get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
+get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
   # read raw data and check format
-  raw <- read.csv(file, header = F, stringsAsFactor = F)
+  raw <- read.csv(main_file, header = F, stringsAsFactor = F)
+  if (ncol(raw) <= 3) {
+    return(list(
+      returncode = 1,
+      message = "No genotypes in the input file for further analysis"))
+  }
   raw[1:3, 1:2] <- "na"
   raw <- raw[!raw[, 1] == "", ]
   raw <- raw[, raw[1, ] != "" & (!apply(raw, 2, function(x) {
@@ -215,10 +220,22 @@ get_main <- function(file = "", log_file, detect, transform.pheno=NULL) {
     if (detect != "never") {
       library(mclust)
       report("m", "Detecting clustering of mice", log_file)
-      mclust1 <- Mclust(pheno$phenotype, G = 1, modelNames = "E")
-      mclust2 <- Mclust(pheno$phenotype, G = 2, modelNames = "E")
-      mclust3 <- Mclust(pheno$phenotype, G = 3, modelNames = "E")
-
+      try.cluster <- tryCatch( {
+        mclust1 <- Mclust(pheno$phenotype, G = 1, modelNames = "E")
+        mclust2 <- Mclust(pheno$phenotype, G = 2, modelNames = "E")
+        mclust3 <- Mclust(pheno$phenotype, G = 3, modelNames = "E")
+        (list(returncode = 0))
+      }, error = function(err) {
+        print(str(err))
+        print(err)
+        msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+        msg <- paste("Cluster detection failed ", msg, " with ", nrow(pheno), " samples.", sep = " ")
+        report("m", msg, log_file)
+        return(list(returncode = 1, message = msg))
+      })
+      if (is.list(try.cluster) && try.cluster$returncode != 0) {
+        return(try.cluster)
+      }
       if (detect == "always" || (detect == "auto" && mclust2$bic > mclust1$bic)) {
         break_index <- sum(mclust2$classification == 1)  # find break point
         tmp <- pheno$phenotype

@@ -1,3 +1,6 @@
+2.2.0
+* Support manhattan plot for X and Y chromosome
+* Fix bugs to support small pedigrees
 2.1.9
 * handle pedigrees of arbitrary size
 * superpedigree can also handle single pedigree

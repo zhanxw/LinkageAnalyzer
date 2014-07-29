@@ -133,7 +133,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
                                   silent = T,
                                   tail = "decreasing",
                                   prefix = "",
-                                  plot.it = FALSE,
+                                  plot.it = TRUE,
                                   transform.pheno = NULL) {
   ## create log file
   log.file <- file.path(output, "log.txt")
@@ -502,14 +502,15 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   head(ret)
 
   if (plot.it) {
+    snapshot("plot.it", "plot.it.Rdata")
     ## draw linkage plot
     linkage.plot.pdf <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
     pdf(file = linkage.plot.pdf, height = 8, width = 11)
-    save(list = ls(), file = "plot.it.dbg")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$additive), main = "additive")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "recessive")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$dominant), main = "dominant")
     dev.off()
+    mycat("Generated ", linkage.plot.pdf, "\n")
 
     dist.plot.pdf <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = ""))
     library(gridExtra)
@@ -519,6 +520,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     ##dev.off()
     ggsave(dist.plot.pdf, tmp)
     ## ggsave(dist.plot.pdf, ml, width = 8, height = 8)
+    mycat("Generated ", dist.plot.pdf, "\n")
   }
   write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
 
