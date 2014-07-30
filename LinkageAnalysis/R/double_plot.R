@@ -26,7 +26,7 @@ heatmap_pval <- function(sig, type, test, cutoff_pair, mask, fns) {
     return()
   }
 
-  library("gplots")
+  ## require("gplots")
   heatmap.2(-log10(sig[[type]][mask, mask]), dendrogram = "none", trace = "none",
             Rowv = F, Colv = F, cexRow = 0.7, cexCol = 0.7,
             main = paste("Heatmap of P values\n (", type, test, ")", sep = " "),

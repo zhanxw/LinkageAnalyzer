@@ -1,8 +1,9 @@
-# this function calculates the p val of the genotype variable according to anova
-# of two glmer fits or two glm fits
+#' this function calculates the p val of the genotype variable according to anova
+#' of two glmer fits or two glm fits
+#' @keywords internal
 anova_test <- function(data, bin, test, silent = T, log_file, tail,
                        null.model = NULL, fit.null = FALSE) {
-  library(lme4)
+  ## require(lme4)
   # check options
   if (test != "wG2" && test != "woG2") {
     report("e", "Unrecognized option for test parameter!", log_file)
@@ -146,7 +147,7 @@ anova_test <- function(data, bin, test, silent = T, log_file, tail,
   }, error = function(err) {
     if (silent == F) {
       if ("message" %in% err$message ) {
-        m <- error$message
+        m <- err$message
       } else {
         m <- "unknown"
       }
@@ -161,7 +162,8 @@ anova_test <- function(data, bin, test, silent = T, log_file, tail,
   })
 
   ## warning has occured during fitting, but error not occured
-  if ( exists("last.warning", envir = baseenv()) && !is.null(last.warning) &&
+  if ( exists("last.warning", envir = baseenv()) &&
+      !is.null(get("last.warning", baseenv())) &&
       ! "error.occured" %in% names(pval_1tail) ) {
     ## suppressWarnings((tmp <- test_commands()))  # run again, suppress warnings
 

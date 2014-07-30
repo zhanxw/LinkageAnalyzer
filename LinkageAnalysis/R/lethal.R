@@ -6,9 +6,9 @@
 
 #' Calculate single lethal p-value
 #' @param nvarFromHet counts of parents with HET
-#' @param nvarHet     counts of offsprings with VAR and with HET mom
+#' @param nFromHet     counts of offsprings with VAR and with HET mom
 #' @param nvarFromUnknown counts of parents with Unknown genotype
-#' @param nvarUnknown     counts of offsprings with VAR and with Unknown mom
+#' @param nFromUnknown     counts of offsprings with VAR and with Unknown mom
 single.lethal.getPvalue <- function(nvarFromHet, nFromHet,
                                     nvarFromUnknown, nFromUnknown) {
   #' g2Unknown can be ungenotyped or g2 = VAR
@@ -145,7 +145,7 @@ calculate.prob <- function (obs, size, p) {
   ret <- list ()
   n.obs <- sum (obs)
   for (i in 1:N) {
-    ret [[i]] <- dbinom (0:n.obs, size = size [i], p = p [i])
+    ret [[i]] <- dbinom (0:n.obs, size = size [i], prob = p [i])
   }
 
   combine.prob <- function (v1, v2) {
@@ -238,7 +238,7 @@ double_lethal <- function(data, input, i, j) {
 
   ## collapsing
   tmp <- data.frame(prob = prob, numG3 = numG3, numObs = numObs)
-  library(plyr)
+  ## require(plyr)
   tmp <- ddply(tmp, .(prob), function(x) {c(numG3 = sum(x$numG3), numObs = sum(x$numObs))})
   tmp <- subset(tmp, prob != 0.0)
   pval <- calculate.prob(obs = tmp$numObs, size = tmp$numG3, p = tmp$prob)

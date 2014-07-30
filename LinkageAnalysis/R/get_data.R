@@ -1,5 +1,12 @@
 #' this function reads the main data and the optional G2 genotype data if G2
 #' genotype data, the returned list will have an additional element
+#'
+#' @param main a CSV file listing phenotyping and genotypes of G3 mice
+#' @param G2 a CSV file listing G2 mothers' genotypes
+#' @param log_file specify log file
+#' @param detect "auto" means detect binary phenotype, or "NULL" means do nothing
+#' @param transform.pheno "log" apply log transformation, or NULL means do nothing
+#'
 #' @return a list containing:
 #'   returncode: 0 when success
 #'   message: optionally message
@@ -49,10 +56,14 @@ get_data <- function(main = "", G2 = "", log_file, detect, transform.pheno = NUL
   return(list(returncode = 0, message = "", data = data))
 }
 
-#' #' @return a list of
-#'  returncode: non-zero when criitical error
-#'  message: related to the function running status
-#'  data: data loaded
+#' function to read G2 mice genotypes
+#' @param file a CSV file listing G2 mothers' genotypes
+#' @param log_file specify log file
+#'
+#' @return a list of
+#' returncode: non-zero when criitical error
+#' message: related to the function running status
+#' data: data loaded
 get_G2 <- function(file = "", log_file) {
   # read G2 genotype data
   raw <- read.csv(file, header = T, stringsAsFactor = F)
@@ -104,6 +115,13 @@ get_G2 <- function(file = "", log_file) {
   return(list(returncode = 0, message = "", data = raw))
 }
 
+#' this function reads the main data
+#'
+#' @param main_file a CSV file listing phenotyping and genotypes of G3 mice
+#' @param log_file specify log file
+#' @param detect "auto" means detect binary phenotype, or "NULL" means do nothing
+#' @param transform.pheno "log" apply log transformation, or NULL means do nothing
+#'
 #' @return NULL when criitical error
 get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
   # read raw data and check format
@@ -217,8 +235,8 @@ get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
     }
 
     # convert to binary variable
-    if (detect != "never") {
-      library(mclust)
+    if (detect != "never" && detect != "NULL") {
+      ## require(mclust)
       report("m", "Detecting clustering of mice", log_file)
       try.cluster <- tryCatch( {
         mclust1 <- Mclust(pheno$phenotype, G = 1, modelNames = "E")
@@ -302,7 +320,11 @@ get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
           unconverted = unconverted)))
 }
 
-#' dichotomize @param x into AFFECTED/UNAFFECTED
+#' Dichotomize a numeric vector into AFFECTED/UNAFFECTED
+#'
+#' @param x numeric vector
+#' @param log_file  specify log file
+#'
 #' @return list(), group -> suggested group number
 dichotomize <- function(x, log_file = NULL) {
   snapshot("dichotomize", "dichotomize.Rdata")
@@ -313,7 +335,7 @@ dichotomize <- function(x, log_file = NULL) {
   x <- x[!na.idx]
 
   report("m", "Detecting clustering of mice", log_file)
-  library(mclust)
+  ## require(mclust)
   mclust1 <- Mclust(x, G = 1, modelNames = "E")
   mclust2 <- Mclust(x, G = 2, modelNames = "E")
   mclust3 <- Mclust(x, G = 3, modelNames = "E")
@@ -373,14 +395,20 @@ dichotomize <- function(x, log_file = NULL) {
   ret
 }
 
+#' read a PED file
+#'
+#' @param pedFile file name in PED format
+#' @param pheno phenotype column header
+#' @param detect "auto" means detect binary phenotype, or "NULL" means do nothing
+#'
+#' @return a data frame that looks like PED file content
 get.ped <- function(pedFile, pheno = NULL, detect = NULL) {
   options(stringsAsFactors = FALSE)
   ## read peds
-  options(stringsAsFactors = FALSE)
   ped <- read.table(pedFile, header = TRUE, comment.char = "!")
   colnames(ped)[1] <- "fid"
   if (any(duplicated(ped[,1:2]))) {
-    error("Duplicated entry")
+    stop("Duplicated entry")
   }
 
   ## make phenotype numeric
@@ -433,9 +461,13 @@ get.ped <- function(pedFile, pheno = NULL, detect = NULL) {
   ped
 }
 
-## order @param chrom and @parm pos together
+#' Order by chromosomal positions
+#'
+#' @param chrom chacter vector listing chromosome names, e.g. "1", "2", ...
+#' @param pos  integer vector
+#'
+#' @return indice which can be used to sort
 order.chrom.pos <- function(chrom, pos) {
-  ## order chrom:pos, then for numeric chrom values, put them forward
   ord <- order(chrom, pos)
   idx.num <- !is.na(suppressWarnings(as.numeric(chrom)) )
   ord[idx.num] <- order(as.numeric(chrom[idx.num])) - 100
@@ -443,12 +475,18 @@ order.chrom.pos <- function(chrom, pos) {
   ord
 }
 
+#' Read a VCF file
+#'
+#' @param vcfFile file name in VCF format
+#' @param log_file specify a log file
+#'
+#' @return a list of parsed VCF file content
 get.vcf <- function(vcfFile, log_file) {
   options(stringsAsFactors = FALSE)
   ## read vcfs
   vcf <- readLines(vcfFile)
   vcf <- vcf[!grepl("^##", vcf)]
-  library(stringr)
+  ## require(stringr)
   hdr <- str_split(str_replace(vcf[1], "#CHROM", "CHROM"), "\t")[[1]]
 
   vcf <- vcf[!grepl("^#", vcf)]
@@ -525,7 +563,11 @@ get.vcf <- function(vcfFile, log_file) {
 } ## get.vcf
 
 
-## data <- make.tao.format(vcf, ped)
+#' Convert 0,1,2,NA to "REF", "HET", "ALT", "FAIL"
+#'
+#' @param x numeric vector
+#'
+#' @return character vector
 geno.from.012 <- function(x) {
   ret <- x
   ret[x==0] <- "REF"
@@ -535,53 +577,13 @@ geno.from.012 <- function(x) {
   ret
 }
 
-make.tao.format <- function(vcf, ped) {
-  ret <- list()
-  gene <- str_replace(str_extract(vcf$INFO, "GENE=[^;]*"), "GENE=", "")
-  chrom <- vcf$CHROM
-  pos <-  as.integer(vcf$POS)
-  coord <- paste(chrom, pos, sep = "_")
-  ret$genes <- data.frame(Gene = gene, Coordination = coord,
-                          chr = chrom, pos = pos)
 
-  ped.g3 <- subset(ped, gen == 3)
-  names.g3 <- ped.g3$iid
-  ret$phenotype <- list(mother = factor(ped.g3$mother),
-                        sex = ifelse(ped.g3$sex == 1, 1, ifelse(ped.g3$sex == 2, 0, 0.5)),
-                        phenotype = ped.g3$norm)
-
-  geno.g3 <- vcf$GT[, names.g3]
-  rownames(geno.g3) <- coord
-  colnames(geno.g3) <- names.g3
-  ret$genotype <- geno.from.012(geno.g3)
-
-  ret$bin <- NA
-
-  ret$unconverted <- list(phenotype = ret$phenotype$phenotype,
-                          break_point = NA)
-
-  ret$G2 <- cbind(gene, coord)
-  colnames(ret$G2) <- c("Gene", "Coordination")
-  ped.g2 <- subset(ped, gen == 2)
-  names.g2 <- ped.g2$iid
-  geno.g2 <- vcf$GT[, names.g2]
-  ret$G2 <- cbind(ret$G2, geno.from.012(geno.g2))
-
-  ret$n <- nrow(geno.g3)
-  ret$obs <- ncol(geno.g3)
-  ret
-}
-## get_vcf_main(main, log_file, detect, transform.pheno)
-## if (G2 != "") {
-##     data <- c(data, list(G2 = get_G2(G2, log_file)))
-## }
-
-## data$n <- dim(data$genes)[1]  # number of genes
-## data$obs <- dim(data$genotype)[2]  # number of mice
-
-##   return(data)
-## }
-
+#' Add samples to vcf data and set their genotypes as missing
+#'
+#' @param vcf vcf data
+#' @param sampleName character vector
+#'
+#' @return vcf data
 vcf.add.sample <- function(vcf, sampleName) {
   ret <- vcf
   n <- length(sampleName)
@@ -606,6 +608,12 @@ vcf.add.sample <- function(vcf, sampleName) {
   ret
 }
 
+#' Delete samples to vcf data
+#'
+#' @param vcf vcf data
+#' @param index integer vector, delete those samples
+#'
+#' @return vcf data
 vcf.delete.sample.by.index <- function(vcf, index) {
   n <- length(vcf)
   for (i in 1:n) {
@@ -622,19 +630,30 @@ vcf.delete.sample.by.index <- function(vcf, index) {
   vcf
 }
 
+#' Summarize vcf data
+#'
+#' @param vcf vcf data
+#'
 vcf.summarize <- function(vcf) {
   nvar <- length(vcf$CHROM)
   nsample <- ncol(vcf$GT)
   cat("VCF contains ", nvar, " variants and ", nsample, " samples\n")
 }
 
-ped.summarize <- function(ped) {
+#' Summarize ped data
+#'
+#' @param ped ped data
+#'
+#' @return NULL
+ped.summarize <- function
+(ped) {
   fam <- sort(unique(ped$fid))
   cat("PED contain ", length(fam), " families: ", fam, "\n")
 
   indv <- sort(unique(ped$iid))
   cat("PED contain ", length(indv), " individuals: ", head(indv), "... \n")
 
+  father <- mother <- NULL ## bypass CRAN check
   fdr <- sort(unique(subset(ped, father == "." & mother == ".")$iid))
   cat("PED contain ", length(fdr), " founders: ", head(fdr), "... \n")
 
@@ -655,3 +674,48 @@ ped.summarize <- function(ped) {
     print(summary(ped[,i]))
   }
 }
+
+
+## #' Convert VCF and PED data to Tao's original format
+## #'
+## #' @param vcf vcf data
+## #' @param ped ped data
+## #'
+## #' @return a list conforming to Tao's format
+## #' @seealso get_data
+## make.tao.format <- function(vcf, ped) {
+##   ret <- list()
+##   gene <- str_replace(str_extract(vcf$INFO, "GENE=[^;]*"), "GENE=", "")
+##   chrom <- vcf$CHROM
+##   pos <-  as.integer(vcf$POS)
+##   coord <- paste(chrom, pos, sep = "_")
+##   ret$genes <- data.frame(Gene = gene, Coordination = coord,
+##                           chr = chrom, pos = pos)
+
+##   ped.g3 <- subset(ped, gen == 3)
+##   names.g3 <- ped.g3$iid
+##   ret$phenotype <- list(mother = factor(ped.g3$mother),
+##                         sex = ifelse(ped.g3$sex == 1, 1, ifelse(ped.g3$sex == 2, 0, 0.5)),
+##                         phenotype = ped.g3$norm)
+
+##   geno.g3 <- vcf$GT[, names.g3]
+##   rownames(geno.g3) <- coord
+##   colnames(geno.g3) <- names.g3
+##   ret$genotype <- geno.from.012(geno.g3)
+
+##   ret$bin <- NA
+
+##   ret$unconverted <- list(phenotype = ret$phenotype$phenotype,
+##                           break_point = NA)
+
+##   ret$G2 <- cbind(gene, coord)
+##   colnames(ret$G2) <- c("Gene", "Coordination")
+##   ped.g2 <- subset(ped, gen == 2)
+##   names.g2 <- ped.g2$iid
+##   geno.g2 <- vcf$GT[, names.g2]
+##   ret$G2 <- cbind(ret$G2, geno.from.012(geno.g2))
+
+##   ret$n <- nrow(geno.g3)
+##   ret$obs <- ncol(geno.g3)
+##   ret
+## }

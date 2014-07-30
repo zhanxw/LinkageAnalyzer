@@ -39,7 +39,7 @@ convert_gt <- function(gt, type) {
 }
 
 #' this function converts a two-tailed p value to a one-tailed p value
-#' @param effect is positive
+#' @param direction is positive
 #' @param pval pvalue
 #' @param tail "decreasing", "increasing" or "both"
 convert_tail <- function(direction, pval, tail) {
@@ -142,15 +142,19 @@ pretty_num <- function(x) {
 }
 
 #' re-source all .R files
+#'
+#' @param dir directory name
 source.all.file <- function(dir = ".") {
   fn <- list.files(path = dir, pattern = ".R$")
   fn <- normalizePath(file.path(dir, fn))
   for (i in fn) {
     source(i)
   }
-  library(stringr)
-  library(plyr)
-  library(ggplot2)
+  ## if (TRUE) {
+  ##   library(stringr)
+  ##   library(plyr)
+  ##   library(ggplot2)
+  ## }
 }
 if (FALSE) {
   source.all.file("~/test.run/LinkageAnalysis/R")

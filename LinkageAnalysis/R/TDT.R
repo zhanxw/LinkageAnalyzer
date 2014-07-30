@@ -1,3 +1,5 @@
+#' Perform TDT
+#' @keywords internal
 TDT <- function(data, G2, gene, bin, log_file) {
   ## if (TRUE) {
   ##   save(file = "test", list = c("data", "G2", "gene", "bin", "log_file"))

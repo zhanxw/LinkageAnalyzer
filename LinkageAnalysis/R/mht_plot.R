@@ -1,12 +1,13 @@
 #' this function draws the manhattan plot
-#' genes:get_data()$genes, including: Gene, Coordination, chr, pos, REF, HET, VAR, lethal
-#' sig_gene: num_gene by 4 columns ("additive", "recessive", "dominant", "TDT")
-#' type: any one of the "additive", "recessive", "dominant", "TDT"
-#' log_file: character
-#' test: "wG2" or "woG2"
-#' bin: logical
-#' effective: logical vector
-#' genotype: data.frame, as in get_data()$genotype
+#'
+#' @param genes get_data()$genes, including Gene, Coordination, chr, pos, REF, HET, VAR, lethal
+#' @param sig_gene num_gene by 4 columns ("additive", "recessive", "dominant", "TDT")
+#' @param type any one of the "additive", "recessive", "dominant", "TDT"
+#' @param log_file character
+#' @param test "wG2" or "woG2"
+#' @param bin logical
+#' @param effective logical vector
+#' @param genotype data.frame, as in get_data()$genotype
 #'
 mht <- function(genes, sig_gene, type, log_file, test, bin, effective, genotype = NULL) {
   cls <- c("aquamarine4", "coral4", "cornflowerblue", "antiquewhite4", "chartreuse4",
@@ -120,8 +121,13 @@ mht <- function(genes, sig_gene, type, log_file, test, bin, effective, genotype 
   return(bonferroni)
 }
 
-#' Draw manhattan plot from @param d
-plot.manhattan <- function(d, main = "") {
+#' Draw manhattan plot
+#'
+#' @param data a data frame with at least three columns: Chrom, Position, Pval
+#' @param main plot title
+#' @return NULL
+plot.manhattan <- function(data, main = "") {
+  d <- data
   snapshot("plot.manhattan", "plot.Rdata")
   stopifnot(is.data.frame(d))
   stopifnot("Chrom" %in% names(d) )
@@ -173,7 +179,7 @@ plot.manhattan <- function(d, main = "") {
   col <- Chrom.color[match(d$Chrom, mm10.chroms$chrom)]
   plot(offset, -log10(d$Pval), axes = F, xlab = "Genomic location", ylab = "-log10(P)",
        xlim = xlim, ylim = ylim, col = col, main = main)
-  axis(1, at = chrom.left, label = label, las = 2, lwd = 0, lwd.ticks = 1)
+  axis(1, at = chrom.left, labels = label, las = 2, lwd = 0, lwd.ticks = 1)
   axis(2)
   abline(v = c(0, chrom.right), col = "lightgray")
 
@@ -183,6 +189,7 @@ plot.manhattan <- function(d, main = "") {
   abline(h = -log10(alpha), lty = "dotted", col = "lightgray")
   abline(h = -log10(bonferroni), lty = "dotted", col = "lightgray")
 
+  Pval <- NULL ## bypass CRAN check
   d.highlight <- subset(d, Pval < alpha)
   print(d.highlight)
   last.chrom.idx <- -1

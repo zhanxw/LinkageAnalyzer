@@ -35,7 +35,8 @@ distrib_plot <- function(data, genes_i, bin) {
 }
 
 plot.distribution <- function(pheno = pheno, main = "") {
-  library(ggplot2)
+  gt <- mother <- NULL ## bypass CRAN check
+  # library(ggplot2)
   pheno$family = pheno$fid
   g <- ggplot(pheno, aes(x = gt, y = pheno, col = mother, pch = family)) +
     geom_point(position = position_jitter(width = 0.2)) +

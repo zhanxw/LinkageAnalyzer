@@ -1,13 +1,13 @@
 get_run <- function(dir, run, filenames) {
   # load file
   results_file <- file.path(dir, run, "results.RData")
-  suppressWarnings(rm(analysis))
-  tryCatch(load(results_file), error = function(e) report("e", "Record doesn't exist!", 
+  suppressWarnings(rm("analysis"))
+  tryCatch(load(results_file), error = function(e) report("e", "Record doesn't exist!",
     filenames$log_file))
-  if (length(analysis) != 8) {
+  if (length(get("analysis")) != 8) {
     report("e", paste("Incomplete record for ", run, "!", sep = ""), filenames$log_file)
   }
-  return(analysis)
+  return(get("analysis"))
 }
 
 get_all_runs <- function(dir, runs, filenames, silent) {
@@ -19,10 +19,10 @@ get_all_runs <- function(dir, runs, filenames, silent) {
     }
     all_results[[run]] <- get_run(dir, run, filenames)
   }
-  
+
   # check consistency
   same_file <- all_results[[run]]$results[, 1:3]  # the last run
-  
+
   # check each run
   for (run in runs) {
     each_file <- all_results[[run]]$results[, 1:3]
@@ -30,6 +30,6 @@ get_all_runs <- function(dir, runs, filenames, silent) {
       report("e", "The analyses are not conducted on the same genes!", filenames$log_file)
     }
   }
-  
+
   return(all_results)
-} 
+}

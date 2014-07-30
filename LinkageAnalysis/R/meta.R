@@ -1,25 +1,41 @@
-if (FALSE) {
-  setwd("~/test.run/0530.meta")
-  vcfFile <- "R0359-R0360.vcf"
-  pedFile <- "R0359-R0360.ped"
-  pheno.name <- "raw"
-  output = "."
-  test = "wG2"
-  detect = "never"
-  silent = T
-  tail = "decreasing"
-  prefix = ""
-  plot.it = FALSE
-  transform.pheno = NULL
-}
-
 #' Meta-analyze single variant in super pedigree
-#' @exmaple
-#' setwd("~zhanxw/test.run/0530.meta")
-#' vcfFile <- "R0359-R0360.vcf"
-#' pedFile <- "R0359-R0360.ped"
+#'
+#' Perform single analysis using multiple pedigrees
+#'
+#' @param vcfFile genotype input file in VCF format
+#' @param pedFile pedigree file in PED format
+#' @param pheno.name phenotype name to analyze
+#' @param output The output folder to put all the output files of the analysis
+#' @param test The statistical test to be used for identifying significant genes
+#' associated with phenotype. Default is "wG2", considering G2 mother
+#' effect. Another option is "woG2", not considering that effect.
+#' @param detect A character string specifying whether to detect clustering of
+#' phenotypic scores and to transform continuous phenotypic scores into a binary
+#' variable (affected and nonaffected). This parameter only works on continuous
+#' phenotype scores. "never" (default): never transform; "always": always
+#' transform; "auto": let the program decide whether to transform.
+#' @param silent  Print intermediate messages to stdout if set to TRUE.
+#' @param tail Either "decreasing", "increasing" or "both". "decreasing" tests
+#' whether the mutation leads to decreased antibody reaction (default);
+#' "increasing" tests whether the mutation leads to increased antibody reaction;
+#' "both" tests the deviation in either direction.
+#' @param prefix Default is "". An optional character string to be attached to
+#' output file names. This can create personalized names for each job.
+#' @param plot.it Default is TRUE, it controls whether to output linkage plots
+#' and distribution plots.
+#' @param transform.pheno Default is NULL. Use "log" if phenotypes need to log
+#' transformed.
+#'
+#' @export
+#' @examples
+#' vcfFile <-
+#'   system.file("extdata/R0359-R0360.vcf",package="LinkageAnalysis")
+#' pedFile <-
+#'   system.file("extdata/R0359-R0360.ped",package="LinkageAnalysis")
 #' pheno.name <- "raw"
-#' meta.single.link(vcfFile, pedFile, pheno.name)
+#' output <-
+#'   sub(pattern="R0359-R0360.vcf",replacement="output",x=vcfFile)
+#' meta.single.link(vcfFile, pedFile, pheno.name, output = output)
 meta.single.link <- function(vcfFile, ## a vector of list
                              pedFile, ## a vector of list
                              pheno.name, ## which phenotype to use
@@ -69,7 +85,9 @@ meta.single.link <- function(vcfFile, ## a vector of list
 
 #' Examine mother-offspring pair and fix mother's genotype by her offsprings.
 #' e.g. mom has VAR offsprings, mom genotype cannot be REF => mom must be HET
+#' @param pheno ped data
 crossCheckMotherGenotype <- function(pheno) {
+  mother <- NULL # bypass CRAN warning
   mom <- ddply(pheno, .(mother), function(x) {
     c(
         ref = sum(x$gt == 0, na.rm = TRUE),
@@ -251,6 +269,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
 
   # read data
   # get G3 mice
+  gen <- iid <- NULL ## bypass CRAN check
   g3.ped <- subset(ped, gen == 3)
   g3.name <- intersect(colnames(vcf$GT), g3.ped$iid)
   pheno <- subset(g3.ped, iid %in% g3.name )
@@ -301,7 +320,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   }
 
   isBinary <- is.factor(pheno[,pheno.name])
-  library(lme4)
+  ## require(lme4)
   if (isBinary) {
     mycat("INFO: Phenotypes are treated as binary\n")
     null <- tryCatch(
@@ -411,6 +430,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
         mycat("Refit alternative model using reduced data and Wald test\n")
 
         run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno) {
+          fid <- numGT <- NULL ## bypass CRAN check
           tmp <- ddply(pheno, .(fid), function(x) {
             c(numGT = length(unique(x$gt)))})
           tmp <- subset(tmp, numGT == 1)$fid
@@ -505,7 +525,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     snapshot("plot.it", "plot.it.Rdata")
     ## draw linkage plot
     linkage.plot.pdf <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
-    pdf(file = linkage.plot.pdf, height = 8, width = 11)
+    pdf(file = linkage.plot.pdf, height = 8, width = 16)
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$additive), main = "additive")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "recessive")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$dominant), main = "dominant")
@@ -513,12 +533,12 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     mycat("Generated ", linkage.plot.pdf, "\n")
 
     dist.plot.pdf <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = ""))
-    library(gridExtra)
+    ## require(gridExtra)
     ## pdf(file = dist.plot.pdf, height = 8, width = 8)
     tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=2, ncol=2)))
     ## print(ml)
     ##dev.off()
-    ggsave(dist.plot.pdf, tmp)
+    ggsave(dist.plot.pdf, tmp, width = 6, height = 6)
     ## ggsave(dist.plot.pdf, ml, width = 8, height = 8)
     mycat("Generated ", dist.plot.pdf, "\n")
   }

@@ -1,23 +1,78 @@
-if (FALSE) {
-  ## library(LinkageAnalysis)
-  fn <- list.files("~/test.run/LinkageAnalysis/R/", pattern = ".*R$")
-  fn <- paste0("~/test.run/LinkageAnalysis/R/", fn)
-  for (f in fn) {
-    source(f)
-  }
-
-  setwd('~/test.run')
-  main_file = "~/test.run/Rpackage.FACS_screen_B1b_cells.R0511.test1/R0511_main_norm_continuous.csv"
-  G2_file = "~/test.run/Rpackage.FACS_screen_B1b_cells.R0511.test1/R0511_G2dam.csv"
-  output = "tmp"
-  test = "woG2"
-  silent = FALSE
-  prefix = "tmp.prefix"
-  double_link(main_file, G2_file, output, test, silent, prefix = prefix)
-
-}
-
-# this function tests the combinatory effect of two genes
+#' @title Statistical analysis for testing the combinatory effect of two mutations
+#'
+#' @description This function tests whether the combination of two mutations
+#' could be correlated with phenotype.
+#' @param main_file \code{raw_file} is an csv file containing main data. See
+#' \code{details} for more information.
+#' @param G2_file \code{G2_file} is an optional csv file containing G2 genotype
+#' data, if such data are available. See \code{details} for more information.
+#' @param output The output folder to put all the output files of the analysis
+#' @param test The statistical test to be used for identifying significant genes
+#' associated with phenotype. Default is "woG2", without considering G2 mother
+#' effect. Another option is "wG2", considering that effect. "wG2" will take a
+#' long time.
+#' @param detect A character string specifying whether to detect clustering of
+#' phenotypic scores and to transform continuous phenotypic scores into a binary
+#' variable (affected and nonaffected). This parameter only works on continuous
+#' phenotype scores. "never" (default): never transform; "always": always
+#' transform; "auto": let the program decide whether to transform.
+#' @param silent Print intermediate messages to stdout if set to TRUE.
+#' @param tail Either "decreasing", "increasing" or "both". "decreasing" tests
+#' whether the mutation leads to decreased antibody reaction (default);
+#' "increasing" tests whether the mutation leads to increased antibody reaction;
+#' "both" tests the deviation in either direction.
+#' @param cutoff_single A numerical value smaller than 1. When between 0-1, only
+#' genes whose single effect has a p value larger than \code{cutoff_single} will
+#' be considered in testing for combinatory effect. Setting \code{cutoff_single}
+#' to a negative number will turn off this screening (not recommended). Default:
+#' 0.01.
+#' @param prefix Default is "". An optional character string to be attached to
+#' output file names. This can create personalized names for each job.
+#' @param plot.it Default is TRUE, it controls whether to output linkage plots
+#' and distribution plots.
+#' @param transform.pheno Default is NULL. Use "log" if phenotypes need to log
+#' transformed.
+#'
+#' @details
+#' For the format of \code{main_file} and \code{G2_file}, please refer
+#' to \code{single_link}.  The \code{double_link} function has 4 modes:
+#' recessive, additive, dominant and inhibitory. Refer to the tutorial attached
+#' in the package for the assumption in each mode. Recessive, additive, dominant
+#' and inhibitory modes test whether the interaction between two genes could
+#' explain the phenotypic variation with different assumptions of how the
+#' interaction will take place.  Basically, ANOVA tests are applied with
+#' different assumption in each mode to test the combinatory effects of two
+#' genes. \code{cutoff_single} is suggested to be set to a value between 0-1, in
+#' order to mask genes which themselves are already shown to be significantly
+#' correlated with phenotype by \code{single_link}.  A PDF file
+#' \code{linkage_plot} will be generated. It will contain 4 heatmap plots of p
+#' values in each of the four modes. The p values are transformed to a -log10
+#' scale. 4 CSV files containing the matrix of p values for each of the 4 modes
+#' will be generated. A second PDF file \code{distribution_plot} will be
+#' generated containing scattorplots of phenotypes scores or categorical
+#' phenotypes for each pair of genes deemed to be significant. A TXT file
+#' \code{log} containing messages, warnings and errors of the program will be
+#' generated.  Synthetic lethality is tested in order to find whether G3 mice
+#' with genotype of VAR,VAR; VAR,HET; and HET,VAR will have any decreased chance
+#' of survival. The p values for synthetic lethality are presented along with
+#' the p values for combinatory effect.
+#' @return No return value.
+#' @seealso \code{\link{single_link}}.
+#' @export
+#' @examples
+#' main_file <-
+#'   system.file("extdata/Aquamarine_QM_Report.csv",package="LinkageAnalysis")
+#' main_file_continuous <-
+#'   system.file("extdata/Aquamarine_QM_Report_continuous.csv",package="LinkageAnalysis")
+#' G2_file <-
+#'   system.file("extdata/Aquamarine_QM_Report_G2.csv",package="LinkageAnalysis")
+#' output <-
+#'   sub(pattern="Aquamarine_QM_Report.csv",replacement="output",x=main_file)
+#'
+#' # if categorical phenotype scores are given
+#' double_link(main_file,G2_file,output=output,silent=TRUE,prefix="double")
+#' # if continuous numerical phenotype scores are given
+#' double_link(main_file_continuous,G2_file,output=output,silent=TRUE,prefix="double")
 double_link <- function(main_file, G2_file = "", output = ".", test = "woG2",
                         detect = "never",
                         silent = TRUE, tail = "decreasing", prefix = "",
@@ -174,7 +229,8 @@ double.link.impl <- function(main_file, G2_file = "", output = ".", test = "woG2
         cat("fit null model\n")
         assign("last.warning", NULL, envir = baseenv())
         null.model <- anova_test(data, input$bin, test, silent, fns$log_file, tail, fit.null = TRUE)$null.model
-        if (exists("last.warning", envir = baseenv()) && !is.null(last.warning)){
+        if (exists("last.warning", envir = baseenv()) &&
+            !is.null(get("last.warning", baseenv()))) {
           report("w", "Null cannot be fitted!!", fns$log_file)
           null.model.ok <- FALSE
         } else {
@@ -217,7 +273,7 @@ double.link.impl <- function(main_file, G2_file = "", output = ".", test = "woG2
                 print(err)
                 msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
                 msg <- paste("Fitting failed", msg, sep = " ")
-                report("m", msg, log.file)
+                report("m", msg, fns$log_file)
                 return(list(returncode = 1, message = msg))
               })
           if (is.list(pval) && pval$returncode == 1) {
