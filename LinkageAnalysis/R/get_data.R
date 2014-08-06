@@ -128,15 +128,16 @@ get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
   raw <- read.csv(main_file, header = F, stringsAsFactor = F)
   if (ncol(raw) <= 3) {
     return(list(
-      returncode = 1,
-      message = "No genotypes in the input file for further analysis"))
+        returncode = 1,
+        message = "No genotypes in the input file for further analysis",
+        raw = raw))
   }
   raw[1:3, 1:2] <- "na"
   raw <- raw[!raw[, 1] == "", ]
   raw <- raw[, raw[1, ] != "" & (!apply(raw, 2, function(x) {
     all(is.na(x))
   }))]
-  raw <- raw[!apply(raw[, -c(1:3)], 1, function(x) all(x == "FALSE")), ]  # delete all false ones
+  raw <- raw[!apply(raw[, -c(1:3), drop = FALSE], 1, function(x) all(x == "FALSE")), ]  # delete all false ones
   raw <- raw[, c(rep(TRUE, 3), raw[3,-seq(3)] != "na")] ## kick out missing phenotypes
   # check names
   if (raw[1, 3] != "G2 Dam eartag" || !grepl(pattern = "gender", raw[2, 3], ignore.case = TRUE) ||
@@ -249,7 +250,7 @@ get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
         msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
         msg <- paste("Cluster detection failed ", msg, " with ", nrow(pheno), " samples.", sep = " ")
         report("m", msg, log_file)
-        return(list(returncode = 1, message = msg))
+        return(list(returncode = 1, message = msg, pheno = pheno, gene = gene))
       })
       if (is.list(try.cluster) && try.cluster$returncode != 0) {
         return(try.cluster)
@@ -296,7 +297,7 @@ get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
     }
   }
 
-  genotype <- raw[-c(1:4), -c(1:3)]
+  genotype <- raw[-c(1:4), -c(1:3), drop = FALSE]
   colnames(genotype) <- raw[4, -c(1:3)]
   rownames(genotype) <- raw[-c(1:4), 3]
   genotype <- as.data.frame(genotype)
@@ -424,11 +425,14 @@ get.ped <- function(pedFile, pheno = NULL, detect = NULL) {
     g1.names <- unique(ped[,1])
     ped$gen <- NA
     ped$gen[ped$iid %in% g1.names] <- 1
-    g0.names <- ped$father[ped$iid %in% g1.names]
+    g0.names <- c(ped$father[ped$iid %in% g1.names], ped$mother[ped$iid %in% g1.names])
     ped$gen[ped$iid %in% g0.names] <- 0
     ped$gen[ped$father %in% g1.names ] <- 2 ## g2 or g3
     g23.names <- ped$iid[ped$gen == 2]
     ped$gen[ped$mother %in% g23.names] <- 3
+    ped$gen[ped$father %in% g23.names] <- 3
+    ped$gen[ped$father == "." & ped$mother == "." & is.na(ped$gen)] <- -1 ## founders
+    ## maybe add G4
     ped$gen
   }
   ped$gen <- markGeneration(ped)
@@ -578,7 +582,7 @@ geno.from.012 <- function(x) {
 }
 
 
-#' Add samples to vcf data and set their genotypes as missing
+#' Add samples to vcf data and set their genotypes as missing (GT, REF, VAR)
 #'
 #' @param vcf vcf data
 #' @param sampleName character vector
@@ -603,8 +607,9 @@ vcf.add.sample <- function(vcf, sampleName) {
   tmp <- vcf$VAR[,rep(1, n), drop = FALSE]
   tmp[] <- NA
   colnames(tmp) <- sampleName
-  ret$ALT <- cbind(vcf$ALT, tmp)
+  ret$VAR <- cbind(vcf$VAR, tmp)
 
+  ret$sampleId <- c(vcf$sampleId, sampleName)
   ret
 }
 
@@ -622,11 +627,14 @@ vcf.delete.sample.by.index <- function(vcf, index) {
         vcf[[i]] <- vcf[[i]][,!index]
       }
     } else if (is.vector(vcf[[i]])) {
-      if (length(vcf[[i]]) == length(index)) {
-        vcf[[i]] <- vcf[[i]][!index]
-      }
+      next
     }
   }
+
+  if (length(vcf[["sampleId"]]) == length(index)) {
+    vcf[["sampleId"]] <- vcf[[i]][!index]
+  }
+
   vcf
 }
 

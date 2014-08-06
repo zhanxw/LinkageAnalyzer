@@ -57,6 +57,7 @@ meta.single.link <- function(vcfFile, ## a vector of list
         if (ret$returncode == 0) {
           msg <- paste("Exit successfully", ret$message, sep = " ")
         } else {
+          ## deal with ignorable errors
           if (ret$returncode == 1 && ret$message == "dichotomize failed") {
             # this is a special error,
             # meaning we will treat it as normal exit but no output files
@@ -72,6 +73,16 @@ meta.single.link <- function(vcfFile, ## a vector of list
       },
       error = function(err) {
         snapshot("meta.single.link.impl", "debug.meta.single.link.impl.Rdata")
+
+        if (err$message == "Response is constant - cannot fit the model"){
+          # this is another special error,
+          # meaning phenotypes are the same and statistical analysis cannot be performed
+          # so returncode are changed from 1 to 0
+          msg <- paste("Exit successfully with no outputs due to", err$message)
+          report("m", msg, log.file)
+          return(list(returncode = 0, message = msg))
+        }
+
         print(str(err))
         print(err)
         msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
@@ -186,14 +197,20 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
 
   ## clean up samples in VCF and PED
   idx <- ! vcf$sampleId %in% ped[,2]
-  mycat("Remove ", sum(idx), " samples from VCF as they are not in PED\n")
+  mycat("Remove ", sum(idx), " samples from VCF as they are not in PED.\n")  ## some sample may not be screened
   vcf <- vcf.delete.sample.by.index(vcf, idx)
 
-  idx <- match(vcf$sampleId, ped[,2])
-  mycat("Remove ", nrow(ped) - length(idx), " samples from PED as they are not in VCF\n")
-  ped <- ped[idx, ]
-  mycat("VCF/PED loaded\n")
+  tmp <- setdiff(ped$iid, vcf$sampleId)
+  mycat("Add ", length(tmp), " samples to VCF according to PED file.\n")
+  vcf <- vcf.add.sample(vcf, tmp)
 
+  ## rearrange PED according to VCF
+  stopifnot(all(sort(vcf$sampleId) == sort(ped$iid)))
+  idx <- match(vcf$sampleId, ped$iid)
+  ped <- ped[idx,]
+  stopifnot(all(vcf$sampleId == ped$iid))
+
+  mycat("VCF/PED loaded\n")
   snapshot("meta.link", "dbg.meta.Rdata")
 
   mycat("Detect phenotype type\n")
@@ -203,20 +220,15 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       ped[,pheno.name] <- tmp$new.value
     } else {
       mycat("ERROR: Dichotomize failed\n")
-
       # write status.file
       status.file.name <- file.path(dirname(log.file),
                                     "R_jobs_complete_with_no_output.txt")
       cat(date(), file = status.file.name)
       cat("\t", file = status.file.name, append = TRUE)
-
-
+      # write log
       msg <- sprintf("Log file [ %s ] created.", status.file.name)
-      ## report("m", msg, log_file)
       mycat(msg)
-      ##msg <- "Exit successfully but no outputs as dichotomization failed"
       msg <- "dichotomize failed"
-      ## report("m", msg, log_file)
       mycat(msg)
       return(list(returncode = 1, message = msg))
     }
@@ -267,31 +279,17 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     ret[i, "lethal"] <- do.call(single.lethal.getPvalue, tmp)
   }
 
-  # read data
+  # reduce data by:
+  #  1. select G3 mice
+  #  2. remove mice with missing phenotype
   # get G3 mice
-  gen <- iid <- NULL ## bypass CRAN check
-  g3.ped <- subset(ped, gen == 3)
-  g3.name <- intersect(colnames(vcf$GT), g3.ped$iid)
-  pheno <- subset(g3.ped, iid %in% g3.name )
-  g2.name <- (pheno$mother)
-
-  # for samples in PED but not in VCF, fill their genotype as NA
-  tmp <- (setdiff(g3.name, colnames(vcf$GT)))
-  if ( length(tmp)> 0) {
-    mycat("WARNING: Genotypes of ", length(tmp), " G3 mice not in VCF:", tmp, "\n")
-    vcf <- vcf.add.sample(vcf, tmp)
-  }
-  tmp <- (setdiff(g2.name, colnames(vcf$GT)))
-  if ( length(tmp) > 0) {
-    mycat("WARNING: Genotypes of ", length(tmp), " G2 mice not in VCF:", tmp, "\n")
-    vcf <- vcf.add.sample(vcf, tmp)
-  }
+  pheno <- ped[!is.na(ped[,pheno.name]), ]
+  pheno <- pheno[!is.na(pheno$gen), ]
+  pheno <- pheno[pheno$gen == 3, ]
 
   # prepare genotype data
-  geno <- vcf$GT[, g3.name]  # G3 genotypes
-  ## geno.g2 <- vcf$GT[, g2.name]
+  geno <- vcf$GT[, pheno$iid]  # G3 genotypes
   nVariant <- nrow(geno)
-
 
   null.model <- sprintf("%s ~ 1 ", pheno.name)
   if (length(unique(pheno$fid)) > 1) {
@@ -335,7 +333,6 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
           print(str(err))
           print(err)
           msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
-          ## msg <- paste("Exit failed", msg, sep = " ")
           return(list(returncode = 1, message = msg, error = err))
         })
     if (is.list(null) && null$returncode == 1) {
@@ -347,7 +344,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
         null <- glm(as.formula(null.model), data = pheno, family = "binomial")
       }
     }
-  } else {
+  } else { ## qtl
     mycat("INFO: Phenotypes are treated as continuous\n")
     if (has.random.effect) {
       null <- lmer(as.formula(null.model), data = pheno, REML = FALSE)
@@ -360,6 +357,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   snapshot("meta.link", "dbg.meta.fit.alt.Rdata")
   dist.plots <- list()
   for (i in 1:nVariant) {
+    ## for (i in 1:5) {
     if (i > 10 && is.debug.mode()) {
       cat("DEBUG skipped ", i, "th variant ..\n")
       next
@@ -402,6 +400,11 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
                 alt <- lmer(as.formula(alt.model), data = pheno, REML = FALSE)
               }
             },
+            warning = function(warn) {
+              mycat("Fit [ ", alt.model, " binary=", isBinary, " ] has warnings ", str(err), "\n")
+              msg <- as.character(last.warning)
+              return(list(returncode = 1, message = msg, warning = warn, isBinary = isBinary, alt.model = alt.model))
+            },
             error = function(err) {
               mycat("Fit [ ", alt.model, " binary=", isBinary, " ] failed ", str(err), "\n")
               ## print(err)
@@ -410,13 +413,27 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
             })
         alt
       }
+      assign("last.warning", NULL, envir = baseenv())
       if (has.random.effect) {
         alt <- run.mixed.effect.alt.model(isBinary, alt.model, pheno)
       } else {
         alt <- list(returncode = 1, message = "no random effect")
       }
 
-      if (! (is.list(alt) && alt$returncode == 1)) {
+      ## check convergence
+      if (.hasSlot(alt, "optinfo")) {
+        converge =  is.null(alt@optinfo$conv$lme4$messages[[1]])
+        if (!converge) {
+          msg <- alt@optinfo$conv$lme4$messages[[1]]
+          err <- list(message = msg)
+          class(err) <- "error"
+          mycat("Model may suffer from convergence: ", msg, "\n")
+          alt <- list(returncode = 1, message = msg, error = err, isBinary = isBinary, alt.model = alt.model)
+        }
+      }
+
+      ## calculate p-value
+      if (!(is.list(alt) && alt$returncode == 1)) {
         ## no error occurred, using tradition anova tests
         pval <- anova(null, alt)$"Pr(>Chisq)"[2]
         if (is.na(pval)) {
@@ -456,10 +473,24 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
               break
             }
 
+            ## check factor variables
+            model.var <- str_split(reduced.model, " ")[[1]]
+            model.var <- model.var [!model.var %in% c("", "~", "1", "+") ]
+            model.var <- reduced.pheno[, model.var]
+            model.var <- model.var[complete.cases(model.var), ]
+            useless.var <- apply(model.var, 2, function(x) {length(unique(x)) == 1})
+
+            if (any(useless.var)) {
+              mycat("Reduced model has unless variable:", names(model.var)[useless.var], ", set pvalue to one.\n")
+              pval <- 1
+              model.fittable <- FALSE
+              break
+            }
+
             ## check rank
             reduced.model.matrix <- model.matrix(as.formula(reduced.model), reduced.pheno)
             if ( qr(reduced.model.matrix)$rank < ncol(reduced.model.matrix)) {
-              mycat("Insufficient sample size to fit models, set pvalue as one\n")
+              mycat("Insufficient sample size to fit models, set pvalue to one.\n")
               pval <- 1
               model.fittable <- FALSE
               break
@@ -483,7 +514,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
               }
             } else{
               ## glm fitting failed, so set pval to one
-              mycat("Refit using glm() failed, set pvalue as one\n")
+              mycat("Refit using glm() failed, set pvalue to one.\n")
               pval <- 1
             }
             break
@@ -524,7 +555,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   if (plot.it) {
     snapshot("plot.it", "plot.it.Rdata")
     ## draw linkage plot
-    linkage.plot.pdf <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
+    linkage.plot.pdf <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = "."))
     pdf(file = linkage.plot.pdf, height = 8, width = 16)
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$additive), main = "additive")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "recessive")
@@ -532,7 +563,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     dev.off()
     mycat("Generated ", linkage.plot.pdf, "\n")
 
-    dist.plot.pdf <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = ""))
+    dist.plot.pdf <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = "."))
     ## require(gridExtra)
     ## pdf(file = dist.plot.pdf, height = 8, width = 8)
     tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=2, ncol=2)))

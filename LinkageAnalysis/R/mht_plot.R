@@ -166,7 +166,11 @@ plot.manhattan <- function(data, main = "") {
                                 171031299,
                                 91744698))
   Chrom.color <- rep(c("red", "blue"), 10)[1:mm10.num.chroms]
-  stopifnot(all(d$Chrom %in% mm10.chroms$chrom ))
+
+  if (!all(d$Chrom %in% mm10.chroms$chrom )) {
+    cat(setdiff(d$Chrom, mm10.chroms$chrom), "\n")
+    stop("Some chromosome names are unknown")
+  }
 
   # start plotting
   chrom.right <- cumsum(as.numeric(mm10.chroms$length))

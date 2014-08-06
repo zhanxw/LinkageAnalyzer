@@ -1,3 +1,7 @@
+2.2.1
+* Improve documentation
+* Fix issue super pedigree issues
+* single/double can handle small pedigrees
 2.2.0
 * Support manhattan plot for X and Y chromosome
 * Fix bugs to support small pedigrees
