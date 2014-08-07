@@ -579,7 +579,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     snapshot("plot.it", "plot.it.Rdata")
     ## draw linkage plot
     linkage.plot.pdf <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = "."))
-    pdf(file = linkage.plot.pdf, height = 8, width = 16)
+    pdf(file = linkage.plot.pdf, height = 8, width = 20)
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$additive), main = "additive")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "recessive")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$dominant), main = "dominant")

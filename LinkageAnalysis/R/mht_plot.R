@@ -182,7 +182,7 @@ plot.manhattan <- function(data, main = "") {
   offset <- chrom.left[match(d$Chrom, mm10.chroms$chrom)] + d$Position
   col <- Chrom.color[match(d$Chrom, mm10.chroms$chrom)]
   plot(offset, -log10(d$Pval), axes = F, xlab = "Genomic location", ylab = "-log10(P)",
-       xlim = xlim, ylim = ylim, col = col, main = main)
+       xlim = xlim, ylim = ylim, col = col, main = main, pch = 20) ## pch=20, small solid dots
   axis(1, at = chrom.left, labels = label, las = 2, lwd = 0, lwd.ticks = 1)
   axis(2)
   abline(v = c(0, chrom.right), col = "lightgray")
@@ -193,6 +193,7 @@ plot.manhattan <- function(data, main = "") {
   abline(h = -log10(alpha), lty = "dotted", col = "lightgray")
   abline(h = -log10(bonferroni), lty = "dotted", col = "lightgray")
 
+  ## add label
   Pval <- NULL ## bypass CRAN check
   d.highlight <- subset(d, Pval < alpha)
   print(d.highlight)
