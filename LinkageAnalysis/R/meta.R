@@ -128,29 +128,52 @@ crossCheckMotherGenotype <- function(pheno) {
 
 countForLethal <- function(pheno) {
   nHetMom <- nVarFromHetMom <- nUnknownMom <- nVarFromUnknownMom <- 0
-  res <- list()
-  for (i in seq_len(nrow(pheno))) {
-    if (is.na(pheno[i, "gt"]) || pheno[i, "gt"] != 2) { ## we only care VAR
+  mothers <- unique(pheno[, "mother"])
+  g2 <- pheno$iid[pheno$gen == 2]
+  g2.mothers <- intersect(g2, mothers)
+  if (length(mothers) == 0) {
+    list(nVarFromHetMom, nHetMom, nVarFromUnknownMom, nUnknownMom)
+  }
+  ## loop each mother
+  for (mother in g2.mothers) {
+    if (mother == ".") { next } ## this should not happen
+    idx <- which(mother == pheno$iid)
+    if (length(idx) != 1) {
+      ## mother not in ped
+      ## nUnknownMom <- nUnknownMom + 1
+      warning("Mother not in PED or multiple moms!")
       next
     }
-    mom.name <- pheno[i, "mother"]
-    if (!mom.name %in% names(res) ) {
-      res[[mom.name]] <- vector("character", 0)
-    }
-    res[[mom.name]] <- c(res[[mom.name]], pheno[i, "iid"])
-  }
-  for (i in seq_len(length(res))) {
-    idx <- which(mom.name %in%  pheno$iid)
-    if (length(idx) == 0) {
-      # mom has unknown
-      nUnknownMom <- nUnknownMom + 1
-      nVarFromUnknownMom <- nVarFromUnknownMom + length(unique(res[[mom.name]]))
+
+    mother.gt <- pheno[idx, "gt"]
+    if (is.na(mother.gt)) {
+      offspring <- pheno[pheno$mother == mother & !is.na(pheno$gt), ]
+      if (nrow(offspring) > 0 ) {
+        nUnknownMom <- nUnknownMom + 1
+        nVarFromUnknownMom <- sum(offspring$gt == 2, na.rm = TRUE)
+      }
+      print(mother)
+      print(offspring)
+    } else if (mother.gt == 0) {
+      next
+    } else if (mother.gt == 1) {
+      offspring <- pheno[pheno$mother == mother & !is.na(pheno$gt), ]
+      if (nrow(offspring) > 0 ) {
+        nHetMom <- nHetMom + 1
+        nVarFromHetMom <- sum(offspring$gt == 2, na.rm = TRUE)
+      }
+      print(mother)
+      print(offspring)
+    } else if (mother.gt == 2) {
+      warning("Observe mother GT = HET :", mother)
+      next ## should not happen ...
     } else {
-      nHetMom <- nHetMom + 1
-      nVarFromHetMom <- nVarFromHetMom + length(unique(res[[mom.name]]))
+      stop("Unrecognized mother genotype!")
     }
+    ## print(mother)
+    ## print(list(nHetMom, nVarFromHetMom, nUnknownMom, nVarFromUnknownMom))
   }
-  list(nHetMom, nVarFromHetMom, nUnknownMom, nVarFromUnknownMom)
+  list(nVarFromHetMom, nHetMom, nVarFromUnknownMom, nUnknownMom)
 }
 
 meta.single.link.impl <- function(vcfFile, ## a vector of list
