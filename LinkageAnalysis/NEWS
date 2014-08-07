@@ -1,4 +1,5 @@
 2.2.3
+* Fix bug of not producing full_result.csv file 
 * Improve manhattan plot
 2.2.2
 * Fix lethal p-value

@@ -20,11 +20,6 @@ Description: This is the optional input file containing G2 information.
 
 -----------------------------------------------------------------
 
-File: lme4_0.999999-2.tar.gz
-
-Description: This is an older version of lme4 package that should be compatible with Linux system.
-
------------------------------------------------------------------
 
 Folder: single
 

@@ -223,6 +223,10 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   mycat("Remove ", sum(idx), " samples from VCF as they are not in PED.\n")  ## some sample may not be screened
   vcf <- vcf.delete.sample.by.index(vcf, idx)
 
+  idx <- apply(vcf$GT, 2, function(x) {all(x[!is.na(x)] == 0)})
+  mycat("Remove ", sum(idx), " samples from VCF as their genotypes are REFs only.\n")
+  vcf <- vcf.delete.sample.by.index(vcf, idx)
+
   tmp <- setdiff(ped$iid, vcf$sampleId)
   mycat("Add ", length(tmp), " samples to VCF according to PED file.\n")
   vcf <- vcf.add.sample(vcf, tmp)

@@ -145,6 +145,21 @@ double.link.impl <- function(main_file, G2_file = "", output = ".", test = "woG2
   # read data,G2 is null is G2 dam genotype data are not available
   snapshot("double.link.impl", "dbg.before.load.Rdata")
   tmp <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)
+  ## Before data load can be possibily fail, just write pval = 1 as results
+  if (!is.null(tmp$data$gene) ) {
+    ones <- rep(1, nrow(tmp$data$genes))
+    nas <- rep(NA, nrow(tmp$data$genes))
+
+    result <- tmp$data$genes
+    result$chr <- sub(pattern = "_.*", replacement = "", tmp$data$genes$Coordination, perl = TRUE)  # split Coordinates
+    result$pos <- sub(pattern = ".*_", replacement = "", tmp$data$genes$Coordination, perl = TRUE)
+
+    result$REF <- result$HET <- result$VAR <- nas
+    result$lethal <- result$additive <- result$recessive <- result$dominant <- result$TDT <- ones
+    result$Penetrance_REF <- result$Penetrance_HET <- result$Penetrance_VAR <- result$Semidominance <- nas
+    write.table(result, file = fns$csv_file, quote = F, row.names = F, sep = ",")
+  }
+  ## If data fails to load, quit
   if (!is.null(ncol(tmp$data$genes) - 3)) {
     nGeno <- ncol(tmp$data$genes) - 3
   } else {
@@ -152,19 +167,6 @@ double.link.impl <- function(main_file, G2_file = "", output = ".", test = "woG2
   }
   if (tmp$returncode || nGeno <= 1) {
     ## Data load failed, just write pval = 1 as results and quit
-    if (!is.null(tmp$gene) ) {
-      ones <- rep(1, nrow(tmp$gene))
-      nas <- rep(NA, nrow(tmp$gene))
-
-      result <- tmp$gene
-      result$chr <- sub(pattern = "_.*", replacement = "", tmp$gene$Coordination, perl = TRUE)  # split Coordinates
-      result$pos <- sub(pattern = ".*_", replacement = "", tmp$gene$Coordination, perl = TRUE)
-
-      result$REF <- result$HET <- result$VAR <- nas
-      result$lethal <- result$additive <- result$recessive <- result$dominant <- result$TDT <- ones
-      result$Penetrance_REF <- result$Penetrance_HET <- result$Penetrance_VAR <- result$Semidominance <- nas
-      write.table(result, file = fns$csv_file, quote = F, row.names = F, sep = ",")
-    }
     tmp$returncode = 0
     return(tmp)
   }
