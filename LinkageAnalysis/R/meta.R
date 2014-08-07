@@ -149,8 +149,8 @@ countForLethal <- function(pheno) {
     if (is.na(mother.gt)) {
       offspring <- pheno[pheno$mother == mother & !is.na(pheno$gt), ]
       if (nrow(offspring) > 0 ) {
-        nUnknownMom <- nUnknownMom + 1
-        nVarFromUnknownMom <- sum(offspring$gt == 2, na.rm = TRUE)
+        nUnknownMom        <- nUnknownMom +        sum(!is.na(offspring$gt), na.rm = TRUE)
+        nVarFromUnknownMom <- nVarFromUnknownMom + sum(offspring$gt == 2, na.rm = TRUE)
       }
       print(mother)
       print(offspring)
@@ -159,8 +159,8 @@ countForLethal <- function(pheno) {
     } else if (mother.gt == 1) {
       offspring <- pheno[pheno$mother == mother & !is.na(pheno$gt), ]
       if (nrow(offspring) > 0 ) {
-        nHetMom <- nHetMom + 1
-        nVarFromHetMom <- sum(offspring$gt == 2, na.rm = TRUE)
+        nHetMom        <- nHetMom        + sum(!is.na(offspring$gt), na.rm = TRUE)
+        nVarFromHetMom <- nVarFromHetMom + sum(offspring$gt == 2, na.rm = TRUE)
       }
       print(mother)
       print(offspring)

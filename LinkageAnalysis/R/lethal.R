@@ -5,10 +5,10 @@
 
 
 #' Calculate single lethal p-value
-#' @param nvarFromHet counts of parents with HET
-#' @param nFromHet     counts of offsprings with VAR and with HET mom
-#' @param nvarFromUnknown counts of parents with Unknown genotype
-#' @param nFromUnknown     counts of offsprings with VAR and with Unknown mom
+#' @param nvarFromHet counts of G3 genotyped and with HET mom
+#' @param nFromHet     counts of G3 with VAR and with HET mom
+#' @param nvarFromUnknown counts of offsprintgs genotyped and with Unknown mom
+#' @param nFromUnknown     counts of G3 with VAR and with Unknown mom
 single.lethal.getPvalue <- function(nvarFromHet, nFromHet,
                                     nvarFromUnknown, nFromUnknown) {
   #' g2Unknown can be ungenotyped or g2 = VAR
