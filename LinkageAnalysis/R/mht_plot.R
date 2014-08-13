@@ -196,6 +196,10 @@ plot.manhattan <- function(data, main = "") {
   ## add label
   Pval <- NULL ## bypass CRAN check
   d.highlight <- subset(d, Pval < alpha)
+  if (nrow(d.highlight) > 20) {
+    ## only exhibit top 20 genes
+    d.highlight <- d.highlight[order(d.highlight$Pval)[1:20], ]
+  }
   print(d.highlight)
   last.chrom.idx <- -1
   for (i in seq_len(nrow(d.highlight))) {
@@ -218,7 +222,7 @@ plot.manhattan <- function(data, main = "") {
       tmp.x <- 0
     }
     tmp.y <- runif(1, min = 0.1, max = 2.5)
-    lines(c(x, x + tmp.x), y + c(0.1, tmp.y), col = addAlpha("brown1"), lty = "dotted")
+    lines(c(x, x + tmp.x), y + c(0.1, tmp.y), col = addAlpha("brown1"))
     ## adj = (0, 0.5) = (top, middle)
     text(x + tmp.x, y + 0.1 + tmp.y, labels = d.highlight$Gene[i], srt = 90, cex= 0.75, adj = c(0, 0.5))
     last.chrom.idx <- chrom.idx

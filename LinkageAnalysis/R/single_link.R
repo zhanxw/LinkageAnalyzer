@@ -170,7 +170,7 @@ single.link.impl <- function(main_file = "", G2_file = "",
   snapshot("single.link.impl", "debug.single.before.load.Rdata")
   tmp <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)
   ## Before data load can be possibily fail, just write pval = 1 as results
-  if (!is.null(tmp$data$gene) ) {
+  if (!is.null(tmp$data$genes)) {
     ones <- rep(1, nrow(tmp$data$genes))
     nas <- rep(NA, nrow(tmp$data$genes))
 
@@ -184,12 +184,13 @@ single.link.impl <- function(main_file = "", G2_file = "",
     write.table(result, file = fns$csv_file, quote = F, row.names = F, sep = ",")
   }
   ## If data fails to load, quit
-  if (!is.null(ncol(tmp$data$genes) - 3)) {
-    nGeno <- ncol(tmp$data$genes) - 3
+  if (!is.null(tmp$data$obs)) {
   } else {
-    nGeno <- 0
+    tmp$data$obs <- 0
   }
-  if (tmp$returncode || nGeno <= 1) {
+  ## load failes, or no genotype
+  if (tmp$returncode || tmp$data$obs <= 0) {
+    ## no samples are genotypes, so quitting
     tmp$returncode = 0
     return(tmp)
   }

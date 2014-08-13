@@ -11,7 +11,7 @@ convert_gt <- function(gt, type) {
     if (type == "additive") {
       gt2num <- c(0, 1, 2)
     } else if (type == "recessive") {
-      gt2num <- c(1, 1, 2)
+      gt2num <- c(0, 0, 1)
     } else if (type == "dominant") {
       gt2num <- c(0, 1, 1)
     }
@@ -31,7 +31,7 @@ convert_gt <- function(gt, type) {
   if (type == "additive") {
     # do nothing
   } else if (type == "recessive") {
-    gt <- ifelse(gt > 1.5, 2, 1)
+    gt <- ifelse(gt > 0.5, 1, 0)
   } else if (type == "dominant") {
     gt <- ifelse(gt > 0.5, 1, 0)
   }

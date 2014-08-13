@@ -1,5 +1,10 @@
+Next version
+* Fix issue 165
+2.2.4
+* Fix a bug when imputating missing genotypes
+* Fix issue 176
 2.2.3
-* Fix bug of not producing full_result.csv file 
+* Fix a bug of not producing full_result.csv file 
 * Improve manhattan plot
 2.2.2
 * Fix lethal p-value

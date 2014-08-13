@@ -152,8 +152,10 @@ countForLethal <- function(pheno) {
         nUnknownMom        <- nUnknownMom +        sum(!is.na(offspring$gt), na.rm = TRUE)
         nVarFromUnknownMom <- nVarFromUnknownMom + sum(offspring$gt == 2, na.rm = TRUE)
       }
-      print(mother)
-      print(offspring)
+      if (is.debug.mode()) {
+        print(mother)
+        print(offspring)
+      }
     } else if (mother.gt == 0) {
       next
     } else if (mother.gt == 1) {
@@ -330,18 +332,18 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     mycat("INFO: only one gender detected\n")
   }
 
-  if (grepl("\\(", null.model)) {
-    has.random.effect <- TRUE
-  } else {
-    has.random.effect <- FALSE
-  }
-
   if (test == "wG2") {
     if (all(is.na(pheno$mother))) {
       mycat("Does not have mother info at all (wG2 cannot work)!!\n")
       stop("Quit...")
     }
     null.model <- paste0(null.model, " + (1|mother)")
+  }
+
+  if (grepl("\\(", null.model)) {
+    has.random.effect <- TRUE
+  } else {
+    has.random.effect <- FALSE
   }
 
   isBinary <- is.factor(pheno[,pheno.name])
@@ -362,7 +364,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
           msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
           return(list(returncode = 1, message = msg, error = err))
         })
-    if (is.list(null) && null$returncode == 1) {
+    if (is.list(null) && !is.null(null$returncode) && null$returncode == 1) {
       mycat("Refit null model using less covariates\n")
       null.model <- str_replace(null.model, "\\+ sex", "")
       if (has.random.effect) {
@@ -396,11 +398,12 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     }
     for (type in c("additive", "recessive", "dominant")) {
       mycat("Perform ", type, " test.\n")
+
       ## encode genotypes
       pheno$gt <- convert_gt(geno[i,], type)
 
-      ## impute missing genotypes
-      pheno$gt[is.na(pheno$gt)] <- 2
+      ## impute missing genotypes to REF
+      pheno$gt[is.na(pheno$gt)] <- 0
 
       ## skip this site when the genotypes are monomorphic
       if (length(unique(pheno$gt)[!is.na(unique(pheno$gt))]) <= 1) {
@@ -460,7 +463,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       }
 
       ## calculate p-value
-      if (!(is.list(alt) && alt$returncode == 1)) {
+      if (!(is.list(alt) && !is.null(alt$returncode) && alt$returncode == 1)) {
         ## no error occurred, using tradition anova tests
         pval <- anova(null, alt)$"Pr(>Chisq)"[2]
         if (is.na(pval)) {
@@ -582,7 +585,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   if (plot.it) {
     snapshot("plot.it", "plot.it.Rdata")
     ## draw linkage plot
-    linkage.plot.pdf <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = "."))
+    linkage.plot.pdf <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
     pdf(file = linkage.plot.pdf, height = 8, width = 20)
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$additive), main = "additive")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "recessive")
@@ -590,7 +593,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     dev.off()
     mycat("Generated ", linkage.plot.pdf, "\n")
 
-    dist.plot.pdf <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = "."))
+    dist.plot.pdf <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = ""))
     ## require(gridExtra)
     ## pdf(file = dist.plot.pdf, height = 8, width = 8)
     tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=2, ncol=2)))

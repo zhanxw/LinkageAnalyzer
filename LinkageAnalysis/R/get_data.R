@@ -1,7 +1,7 @@
 #' this function reads the main data and the optional G2 genotype data if G2
 #' genotype data, the returned list will have an additional element
 #'
-#' @param main a CSV file listing phenotyping and genotypes of G3 mice
+#' @param main_file a CSV file listing phenotyping and genotypes of G3 mice
 #' @param G2 a CSV file listing G2 mothers' genotypes
 #' @param log_file specify log file
 #' @param detect "auto" means detect binary phenotype, or "NULL" means do nothing
@@ -31,9 +31,9 @@
 #'       Amplicon: char vec
 #'     n:  # of genes
 #'     obs:  # of mice
-get_data <- function(main = "", G2 = "", log_file, detect, transform.pheno = NULL) {
+get_data <- function(main_file = "", G2 = "", log_file, detect, transform.pheno = NULL) {
   snapshot("get_data", "get_data.Rdata")
-  data <- get_main(main, log_file, detect, transform.pheno)
+  data <- get_main(main_file, log_file, detect, transform.pheno)
   if (data$returncode) {
     return(data)
   } else {
