@@ -491,6 +491,9 @@ get.vcf <- function(vcfFile, log_file) {
   vcf <- readLines(vcfFile)
   vcf <- vcf[!grepl("^##", vcf)]
   ## require(stringr)
+  if (!grepl("^#CHROM\tPOS", vcf[1])) {
+    stop("VCF input does not have valid header: #CHROM\tPOS...")
+  }
   hdr <- str_split(str_replace(vcf[1], "#CHROM", "CHROM"), "\t")[[1]]
 
   vcf <- vcf[!grepl("^#", vcf)]

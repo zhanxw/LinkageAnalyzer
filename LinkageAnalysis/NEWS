@@ -1,3 +1,6 @@
+2.2.6
+* Add sanity check for input VCF file
+* Fix bug when plot histogram
 2.2.5
 * Fix issue 176 (binary cases are supported in distribution plot)
 * Fix issue 165 (test case inputs are invalid)

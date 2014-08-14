@@ -66,10 +66,10 @@ diagnostic <- function(phenotype, bin, log_file, unconverted) {
 
 
 plot.hist <- function(x, main = "") {
-  if (!is.numeric(x)) {
-    x <- data.frame(x = as.numeric(x))
-  }
-  ggplot(x, aes(x = x)) +
+  x <- data.frame(x = as.numeric(x))
+  g <- ggplot(x, aes(x = x)) +
       geom_histogram(aes(y = ..density.., fill = ..count..)) +
-          geom_density(col = "gold1", size = 1.5) + xlab("Phenotype scores") + ylab("Density") + ggtitle(main)
+      geom_density(col = "gold1", size = 1.5) + xlab("Phenotype scores") + ylab("Density") + ggtitle(main)
+  print(g)
+  g
 }

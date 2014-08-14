@@ -583,7 +583,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   head(ret)
 
   if (plot.it) {
-    snapshot("plot.it", "plot.it.Rdata", TRUE)
+    snapshot("plot.it", "plot.it.Rdata")
     ## draw linkage plot
     linkage.plot.pdf <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
     pdf(file = linkage.plot.pdf, height = 8, width = 20)
@@ -628,9 +628,3 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   return(list(returncode = 0, message = "", result = ret))
 }
 
-
-## tmp <- pheno[, c("fid", "iid", "mother", "pheno", "gt")]
-## tmp$fid <- factor(tmp$fid)
-## tmp$mother <- factor(tmp$mother)
-## g <- ggplot(data = tmp, aes(x = "gt", y = "pheno", col = "mother", pch = "fid")) + geom_point(position = "jitter")
-## ggsave(filename = "tmp.pdf", plot = g, width = 7, height = 7)
