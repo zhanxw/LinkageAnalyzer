@@ -151,9 +151,9 @@ source.all.file <- function(dir = ".") {
     source(i)
   }
   ## if (TRUE) {
-  ##   library(stringr)
-  ##   library(plyr)
-  ##   library(ggplot2)
+  ## library(stringr)
+  ## library(plyr)
+  ## library(ggplot2)
   ## }
 }
 if (FALSE) {
@@ -172,8 +172,8 @@ disabe.debug.mode <- function() {
   Sys.unsetenv("DEBUG_LINKAGE_ANALYSIS")
 }
 
-snapshot <- function(call.func.name, fn) {
-  if (is.debug.mode()) {
+snapshot <- function(call.func.name, fn, force = FALSE) {
+  if (is.debug.mode() || force) {
     if (!grepl("\\.Rdata", fn)) {
       fn <- paste0(fn, ".Rdata")
     }

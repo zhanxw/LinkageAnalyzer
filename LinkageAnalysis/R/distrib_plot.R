@@ -34,11 +34,18 @@ distrib_plot <- function(data, genes_i, bin) {
   }
 }
 
-plot.distribution <- function(pheno = pheno, main = "") {
+plot.distribution <- function(pheno, pheno.name, main = "") {
+  stopifnot(!is.null(pheno))
+  stopifnot(!is.null(pheno$gt))
+  stopifnot(!all(is.na(pheno$gt)))
+  stopifnot(!is.null(pheno[, pheno.name]))
+  stopifnot(!all(is.na(pheno[,pheno.name])))
   gt <- mother <- NULL ## bypass CRAN check
   # library(ggplot2)
   pheno$family = pheno$fid
-  g <- ggplot(pheno, aes(x = gt, y = pheno, col = mother, pch = family)) +
+  pheno$y <- pheno[, pheno.name]
+  pheno$y <- as.numeric(pheno$y)
+  g <- ggplot(pheno, aes(x = gt, y = y, col = mother, pch = family)) +
     geom_point(position = position_jitter(width = 0.2)) +
       xlab("Genotype") +
         ylab("Phenotype") +

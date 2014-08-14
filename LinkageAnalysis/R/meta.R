@@ -416,7 +416,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       if (type == "additive") {
         ## cat ("store graph\n")
         dist.title <- sprintf("%s (%s:%s)", gene[i], as.character(ret$chr[i]), as.character(ret$pos[i]))
-        dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, dist.title)
+        dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, pheno.name, dist.title)
       }
 
       ## fit alternative model
@@ -431,12 +431,12 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
               }
             },
             warning = function(warn) {
-              mycat("Fit [ ", alt.model, " binary=", isBinary, " ] has warnings ", str(err), "\n")
+              mycat("Fit [ ", alt.model, " binary =", isBinary, " ] has warnings ", str(err), "\n")
               msg <- as.character(last.warning)
               return(list(returncode = 1, message = msg, warning = warn, isBinary = isBinary, alt.model = alt.model))
             },
             error = function(err) {
-              mycat("Fit [ ", alt.model, " binary=", isBinary, " ] failed ", str(err), "\n")
+              mycat("Fit [ ", alt.model, " binary =", isBinary, " ] failed ", str(err), "\n")
               ## print(err)
               msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
               return(list(returncode = 1, message = msg, error = err, isBinary = isBinary, alt.model = alt.model))
@@ -583,10 +583,11 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   head(ret)
 
   if (plot.it) {
-    snapshot("plot.it", "plot.it.Rdata")
+    snapshot("plot.it", "plot.it.Rdata", TRUE)
     ## draw linkage plot
     linkage.plot.pdf <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
     pdf(file = linkage.plot.pdf, height = 8, width = 20)
+    plot.hist(pheno[,pheno.name], main = "Histogram of phenotype scores")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$additive), main = "additive")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "recessive")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$dominant), main = "dominant")

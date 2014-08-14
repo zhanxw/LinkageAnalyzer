@@ -1,5 +1,6 @@
-Next version
-* Fix issue 165
+2.2.5
+* Fix issue 176 (binary cases are supported in distribution plot)
+* Fix issue 165 (test case inputs are invalid)
 2.2.4
 * Fix a bug when imputating missing genotypes
 * Fix issue 176
