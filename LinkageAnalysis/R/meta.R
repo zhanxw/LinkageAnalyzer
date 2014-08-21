@@ -417,6 +417,10 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   for (i in seq_len(nrow(ret))) {
     ## calculate lethal
     stopifnot(all(vcf$sampleId == ped$iid))
+    if (i > 10 && is.debug.mode()) {
+      cat("DEBUG skipped ", i, "th variant ..\n")
+      next
+    }
     ## encode genotypes
     tmp <- ped
     tmp$gt <- convert_gt(vcf$GT[i,], "additive")
@@ -518,7 +522,8 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     ret[i, "TDT"] <- NA     ## TODO: implement this
   }
 
-  ret <- calc.genetic(ret, geno, pheno, pheno.name)
+  snapshot("calc.genetic", "calc.genetic.Rdata")
+  ret <- calc.genetic(ret, geno, pheno, pheno.name, isBinary)
   head(ret)
 
   if (plot.it) {

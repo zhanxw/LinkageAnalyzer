@@ -1,9 +1,9 @@
 todo 2.2.9
 * Finish plots in double.link
+* Fix issue 177
 2.2.8
 * Switch main/g2 format to VCF/PED formats for single/double linkage (statistics)
 * Clean up codes
-* Fix issue 177
 2.2.7
 * Clean up codes
 2.2.6
