@@ -656,8 +656,7 @@ vcf.summarize <- function(vcf) {
 #' @param ped ped data
 #'
 #' @return NULL
-ped.summarize <- function
-(ped) {
+ped.summarize <- function(ped) {
   fam <- sort(unique(ped$fid))
   cat("PED contain ", length(fam), " families: ", fam, "\n")
 
@@ -686,6 +685,84 @@ ped.summarize <- function
   }
 }
 
+load.vcf.ped <- function(vcfFile, pedFile, pheno.name) {
+  loginfo("Load VCF file: %s ", vcfFile)
+  vcf <- get.vcf(vcfFile)
+  vcf.summarize(vcf)
+
+  if (length(vcf$CHROM) < 1) {
+    msg <- "VCF is empty"
+    logerror(msg)
+    return(returncode = 1, message = msg)
+  }
+
+  loginfo("Load PED file: %s", pedFile)
+  ped <- get.ped(pedFile)
+  ped.summarize(ped)
+
+  ## verify phenotype name
+  stopifnot(pheno.name %in% colnames(ped)[-(1:5)] )
+  stopifnot(!all(is.na(ped[,pheno.name])))
+
+  ## clean up samples in VCF and PED
+  idx <- ! vcf$sampleId %in% ped[,2]
+  loginfo("Remove %d samples from VCF as they are not in PED.", sum(idx))  ## some sample may not be screened
+  vcf <- vcf.delete.sample.by.index(vcf, idx)
+
+  idx <- apply(vcf$GT, 2, function(x) {all(x[!is.na(x)] == 0)})
+  loginfo("Remove %d samples from VCF as their genotypes are REFs only.", sum(idx))
+  vcf <- vcf.delete.sample.by.index(vcf, idx)
+
+  tmp <- setdiff(ped$iid, vcf$sampleId)
+  loginfo("Add %d samples to VCF according to PED file.", length(tmp))
+  vcf <- vcf.add.sample(vcf, tmp)
+
+  ## rearrange PED according to VCF
+  stopifnot(all(sort(vcf$sampleId) == sort(ped$iid)))
+  idx <- match(vcf$sampleId, ped$iid)
+  ped <- ped[idx,]
+  stopifnot(all(vcf$sampleId == ped$iid))
+
+  return(list(vcf = vcf, ped = ped))
+}
+
+# if @param is "auto" then dichotomize phenotype,
+# otherwise verify the phenotype is QTL
+process.phenotype <- function(ped, pheno.name, detect) {
+  if (detect == "auto") {
+    tmp <- dichotomize(ped[,pheno.name])
+    if (tmp$succ) {
+      ped[,pheno.name] <- tmp$new.value
+    } else {
+      logerror("ERROR: Dichotomize failed")
+      # write status.file
+      log.file <- get("file", envir = getHandler('writeToFile'))
+      status.file.name <- file.path(dirname(log.file),
+                                    "R_jobs_complete_with_no_output.txt")
+      cat(date(), file = status.file.name)
+      cat("\t", file = status.file.name, append = TRUE)
+      # write log
+      msg <- sprintf("Log file [ %s ] created.", status.file.name)
+      loginfo(msg)
+      msg <- "dichotomize failed"
+      logerror(msg)
+      return(list(returncode = 1, message = msg))
+    }
+  } else {
+    ## phenotype is quantitative, but let's double check it's QTL
+    tmp <- ped[,pheno.name]
+    tmp <- tmp[!is.na(tmp)] ## remove NA
+    tmp <- tmp[! tmp %in% c(-9, 0, 1, 2) ]
+    if (length(unique(tmp)) == 0) {
+      logwarn("WARNING: phenotype seems bo be binary and will apply binary models\n")
+      tmp <- ped[,pheno.name]
+      idx <- tmp %in% c(-9, 0)
+      ped[idx, pheno.name] <- NA
+      ped[,pheno.name] <- factor(ped[,pheno.name], levels = c(1, 2), labels = c("AFFECTED", "UNAFFECTED"))
+    }
+  }
+  return(list(ped = ped))
+}
 
 ## #' Convert VCF and PED data to Tao's original format
 ## #'
@@ -730,3 +807,4 @@ ped.summarize <- function
 ##   ret$obs <- ncol(geno.g3)
 ##   ret
 ## }
+

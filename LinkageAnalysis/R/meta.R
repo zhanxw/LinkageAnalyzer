@@ -47,6 +47,7 @@ meta.single.link <- function(vcfFile, ## a vector of list
                              prefix = "",
                              plot.it = TRUE,
                              transform.pheno = NULL) {
+
   log.file <- filename(output, prefix)$log_file
   ret <- tryCatch(
       {
@@ -97,12 +98,12 @@ meta.single.link <- function(vcfFile, ## a vector of list
 #' Examine mother-offspring pair and fix mother's genotype by her offsprings.
 #' e.g. mom has VAR offsprings, mom genotype cannot be REF => mom must be HET
 #' @param pheno ped data
-crossCheckMotherGenotype <- function(pheno) {
+crossCheckMotherGenotype <- function(pheno, geno.name = "gt") {
   mother <- NULL # bypass CRAN warning
   mom <- ddply(pheno, .(mother), function(x) {
     c(
-        ref = sum(x$gt == 0, na.rm = TRUE),
-        var = sum(x$gt > 0, na.rm = TRUE))
+        ref = sum(x[[geno.name]] == 0, na.rm = TRUE),
+        var = sum(x[[geno.name]] > 0, na.rm = TRUE))
   })
   total.fix <- 0
   fixed.mom.id <- vector("character", 0)
@@ -112,9 +113,9 @@ crossCheckMotherGenotype <- function(pheno) {
       if (!mom.name %in% pheno$iid ) {
         next
       }
-      if (!is.na(pheno[ pheno$iid == mom.name, "gt"]) &&
-          pheno[ pheno$iid == mom.name, "gt"] != 1) {
-        pheno[ pheno$iid == mom.name, "gt"] <- 1 ## set to het
+      if (!is.na(pheno[ pheno$iid == mom.name, geno.name]) &&
+          pheno[ pheno$iid == mom.name, geno.name] != 1) {
+        pheno[ pheno$iid == mom.name, geno.name] <- 1 ## set to het
         total.fix <- total.fix + 1
         fixed.mom.id <- c(fixed.mom.id, mom.name)
       }
@@ -164,8 +165,10 @@ countForLethal <- function(pheno) {
         nHetMom        <- nHetMom        + sum(!is.na(offspring$gt), na.rm = TRUE)
         nVarFromHetMom <- nVarFromHetMom + sum(offspring$gt == 2, na.rm = TRUE)
       }
-      print(mother)
-      print(offspring)
+      if (is.debug.mode()) {
+        print(mother)
+        print(offspring)
+      }
     } else if (mother.gt == 2) {
       warning("Observe mother GT = HET :", mother)
       next ## should not happen ...
@@ -178,178 +181,132 @@ countForLethal <- function(pheno) {
   list(nVarFromHetMom, nHetMom, nVarFromUnknownMom, nUnknownMom)
 }
 
-meta.single.link.impl <- function(vcfFile, ## a vector of list
-                                  pedFile, ## a vector of list
-                                  pheno.name, ## which phenotype to use
-                                  output = ".",
-                                  test = "wG2",
-                                  detect = "never",
-                                  silent = T,
-                                  tail = "decreasing",
-                                  prefix = "",
-                                  plot.it = TRUE,
-                                  transform.pheno = NULL) {
-  ## create log file
-  log.file <- file.path(output, "log.txt")
-  if (file.exists(log.file)) {
-    file.remove(log.file)
+run.mixed.effect.alt.model <- function(isBinary, alt.model, pheno) {
+  assign("last.warning", NULL, envir = baseenv())
+  alt <- tryCatch(
+      {
+        if (isBinary) {
+          alt <- glmer(as.formula(alt.model), data = pheno, family = "binomial")
+        } else {
+          alt <- lmer(as.formula(alt.model), data = pheno, REML = FALSE)
+        }
+      },
+      warning = function(warn) {
+        logwarn(paste0("Fit [ ", alt.model, " binary =", isBinary, " ] has warnings ", str(warn)))
+        msg <- as.character(last.warning)
+        return(list(returncode = 1, message = msg, warning = warn, isBinary = isBinary, alt.model = alt.model))
+      },
+      error = function(err) {
+        logwarn(paste0("Fit [ ", alt.model, " binary =", isBinary, " ] failed ", str(err)))
+        print(err)
+        msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+        return(list(returncode = 1, message = msg, error = err, isBinary = isBinary, alt.model = alt.model))
+      })
+  alt
+}
+
+run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno, pheno.name, tail) {
+  fid <- numGT <- NULL ## bypass CRAN check
+  tmp <- ddply(pheno, .(fid), function(x) {
+    c(numGT = length(unique(x$gt)))})
+  tmp <- subset(tmp, numGT == 1)$fid
+  reduced.pheno <- subset (pheno, !fid %in% tmp )
+  reduced.model <- str_replace(alt.model, "\\(1\\|fid\\)", "fid")
+  if (length(unique(reduced.pheno$fid)) == 1) {
+    reduced.model <- str_replace(reduced.model, "\\+ fid", "")
   }
-
-  mycat <- function(...) {
-    cat(...)
-    cat(..., file = log.file, append = TRUE)
+  reduced.model <- str_replace(reduced.model, "\\(1\\|mother\\)", "mother")
+  if (length(unique(reduced.pheno$mother)) == 1) {
+    reduced.model <- str_replace(reduced.model, "\\+ mother", "")
   }
+  reduced.pheno$mother <- factor(reduced.pheno$mother)
 
-  wd <- getwd()
-  mycat(paste("Version:", packageVersion("LinkageAnalysis")), "\n")
-  mycat(paste("Date:", Sys.time()), "\n")
-  mycat(paste("Host:", Sys.info()["nodename"]), "\n")
-  mycat(paste("Call:", deparse(sys.status()$sys.calls[[1]], width.cutoff = 500L)), "\n")
-  mycat(paste("Directory:", wd), "\n")
+  ## check if the model can be fit
+  model.fittable <- TRUE
+  while (model.fittable) {
+    ## check sample size
+    if (nrow(reduced.pheno) == 0) {
+      loginfo("Insufficient sample size to fit models, set pvalue as one")
+      pval <- 1
+      model.fittable <- FALSE
+      break
+    }
 
-  start.time <- Sys.time()
-  mycat("Load VCF file: ", vcfFile, "\n")
-  vcf <- get.vcf(vcfFile)
-  vcf.summarize(vcf)
+    ## check factor variables
+    model.var <- str_split(reduced.model, " ")[[1]]
+    model.var <- model.var [!model.var %in% c("", "~", "1", "+") ]
+    model.var <- reduced.pheno[, model.var]
+    model.var <- model.var[complete.cases(model.var), ]
+    useless.var <- apply(model.var, 2, function(x) {length(unique(x)) == 1})
 
-  mycat("Load PED file: ", pedFile, "\n")
-  ped <- get.ped(pedFile)
-  ped.summarize(ped)
+    if (any(useless.var)) {
+      loginfo(paste0("Reduced model has unless variable:", names(model.var)[useless.var], ", set pvalue to one."))
+      pval <- 1
+      model.fittable <- FALSE
+      break
+    }
 
-  ## verify phenotype name
-  stopifnot(pheno.name %in% colnames(ped)[-(1:5)] )
-  stopifnot(!all(is.na(ped[,pheno.name])))
+    ## check rank
+    reduced.model.matrix <- model.matrix(as.formula(reduced.model), reduced.pheno)
+    if ( qr(reduced.model.matrix)$rank < ncol(reduced.model.matrix)) {
+      loginfo(paste0("Insufficient sample size to fit models, set pvalue to one."))
+      pval <- 1
+      model.fittable <- FALSE
+      break
+    }
 
-  ## clean up samples in VCF and PED
-  idx <- ! vcf$sampleId %in% ped[,2]
-  mycat("Remove ", sum(idx), " samples from VCF as they are not in PED.\n")  ## some sample may not be screened
-  vcf <- vcf.delete.sample.by.index(vcf, idx)
-
-  idx <- apply(vcf$GT, 2, function(x) {all(x[!is.na(x)] == 0)})
-  mycat("Remove ", sum(idx), " samples from VCF as their genotypes are REFs only.\n")
-  vcf <- vcf.delete.sample.by.index(vcf, idx)
-
-  tmp <- setdiff(ped$iid, vcf$sampleId)
-  mycat("Add ", length(tmp), " samples to VCF according to PED file.\n")
-  vcf <- vcf.add.sample(vcf, tmp)
-
-  ## rearrange PED according to VCF
-  stopifnot(all(sort(vcf$sampleId) == sort(ped$iid)))
-  idx <- match(vcf$sampleId, ped$iid)
-  ped <- ped[idx,]
-  stopifnot(all(vcf$sampleId == ped$iid))
-
-  mycat("VCF/PED loaded\n")
-  snapshot("meta.link", "dbg.meta.Rdata")
-
-  mycat("Detect phenotype type\n")
-  if (detect == "auto") {
-    tmp <- dichotomize(ped[,pheno.name])
-    if (tmp$succ) {
-      ped[,pheno.name] <- tmp$new.value
+    ## try alt model
+    if (isBinary) {
+      reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
+      alt <- glm(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
     } else {
-      mycat("ERROR: Dichotomize failed\n")
-      # write status.file
-      status.file.name <- file.path(dirname(log.file),
-                                    "R_jobs_complete_with_no_output.txt")
-      cat(date(), file = status.file.name)
-      cat("\t", file = status.file.name, append = TRUE)
-      # write log
-      msg <- sprintf("Log file [ %s ] created.", status.file.name)
-      mycat(msg)
-      msg <- "dichotomize failed"
-      mycat(msg)
-      return(list(returncode = 1, message = msg))
+      alt <- lm(as.formula(reduced.model), data = reduced.pheno)
     }
-  } else {
-    ## phenotype is quantitative, but let's double check it's QTL
-    tmp <- ped[,pheno.name]
-    tmp <- tmp[!is.na(tmp)] ## remove NA
-    tmp <- tmp[! tmp %in% c(-9, 0, 1, 2) ]
-    if (length(unique(tmp)) == 0) {
-      mycat("WARNING: phenotype seems bo be binary and will apply binary models\n")
-      tmp <- ped[,pheno.name]
-      idx <- tmp %in% c(-9, 0)
-      ped[idx, pheno.name] <- NA
-      ped[,pheno.name] <- factor(ped[,pheno.name], levels = c(1, 2), labels = c("AFFECTED", "UNAFFECTED"))
+    idx <- which(colnames(summary(alt)$coefficients) == "Pr(>|t|)" |
+                 colnames(summary(alt)$coefficients) == "Pr(>|z|)")
+    coef <- summary(alt)$coefficients
+    if ("gt" %in% rownames(coef) ) {
+      pval <- coef["gt", idx]
+      direction <- coef(alt)["gt"] > 0
+      if (!is.na(direction)) {
+        pval <- convert_tail(direction, pval, tail)
+      }
+    } else{
+      ## glm fitting failed, so set pval to one
+      logwarn("Refit using glm() failed, set pvalue to one.\n")
+      pval <- 1
     }
+    break
   }
+  pval
+}
 
-  fns <- filename(output, prefix)  # generate output file names
-  if (!tail %in% c("increasing", "decreasing", "both")) {
-    msg <- paste0("ERROR: Unrecognized option for tail [ ", tail, "]\n")
-    mycat(msg)
-    return(list(returncode = 1, message = msg))
-  }
-
-  ## make an output skeleton
-  nSite <- length(vcf$CHROM)
-  nas <- rep(NA, nSite)
-  gene <- str_replace(sapply(vcf$INFO, function(x) {str_split(x, ";")[[1]][1]}), "GENE=", "")
-  ret <- data.frame(Gene = gene, chr = vcf$CHROM, pos = vcf$POS,
-                    REF = nas ,HET =nas, VAR = nas,
-                    lethal = nas, additive = nas, recessive = nas, dominant = nas, TDT = nas,
-                    Penetrance_REF = nas, Penetrance_HET = nas, Penetrance_VAR = nas, Semidominance = nas)
-  rownames(ret) <- NULL
-
-  # calculate lethal
-  type <- "lethal"
-  mycat("Perform ", type, " test.\n")
-  for (i in seq_len(nrow(ret))) {
-    ## calculate lethal
-    stopifnot(all(vcf$sampleId == ped$iid))
-    ## encode genotypes
-    tmp <- ped
-    tmp$gt <- convert_gt(vcf$GT[i,], "additive")
-    ## check mother genotypes
-    tmp <- crossCheckMotherGenotype(tmp)
-    ## count mother, offspring by their genotypes
-    tmp <- countForLethal(tmp)
-    ret[i, "lethal"] <- do.call(single.lethal.getPvalue, tmp)
-  }
-
-  # reduce data by:
-  #  1. select G3 mice
-  #  2. remove mice with missing phenotype
-  # get G3 mice
-  pheno <- ped[!is.na(ped[,pheno.name]), ]
-  pheno <- pheno[!is.na(pheno$gen), ]
-  pheno <- pheno[pheno$gen == 3, ]
-
-  # prepare genotype data
-  geno <- vcf$GT[, pheno$iid]  # G3 genotypes
-  nVariant <- nrow(geno)
-
+create.null.model <- function(pheno, pheno.name, test) {
   null.model <- sprintf("%s ~ 1 ", pheno.name)
   if (length(unique(pheno$fid)) > 1) {
     null.model <- paste0(null.model, " + (1|fid) ")
   } else {
-    mycat("INFO: 1 family detected\n")
+    loginfo("INFO: 1 family detected\n")
   }
   if (length(unique(pheno$sex)) > 1) {
     null.model <- paste0(null.model, " + sex")
   } else {
-    mycat("INFO: only one gender detected\n")
+    loginfo("INFO: only one gender detected\n")
   }
 
   if (test == "wG2") {
     if (all(is.na(pheno$mother))) {
-      mycat("Does not have mother info at all (wG2 cannot work)!!\n")
+      logerror("Does not have mother info at all (wG2 cannot work)!!\n")
       stop("Quit...")
     }
     null.model <- paste0(null.model, " + (1|mother)")
   }
+  null.model
+}
 
-  if (grepl("\\(", null.model)) {
-    has.random.effect <- TRUE
-  } else {
-    has.random.effect <- FALSE
-  }
-
-  isBinary <- is.factor(pheno[,pheno.name])
-  ## require(lme4)
+fit.null.model <- function(null.model, pheno, isBinary, has.random.effect) {
   if (isBinary) {
-    mycat("INFO: Phenotypes are treated as binary\n")
+    loginfo("INFO: Phenotypes are treated as binary\n")
     null <- tryCatch(
         {
           if (has.random.effect) {
@@ -365,7 +322,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
           return(list(returncode = 1, message = msg, error = err))
         })
     if (is.list(null) && !is.null(null$returncode) && null$returncode == 1) {
-      mycat("Refit null model using less covariates\n")
+      loginfo("Refit null model using less covariates\n")
       null.model <- str_replace(null.model, "\\+ sex", "")
       if (has.random.effect) {
         null <- glmer(as.formula(null.model), data = pheno, family = "binomial")
@@ -374,30 +331,142 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       }
     }
   } else { ## qtl
-    mycat("INFO: Phenotypes are treated as continuous\n")
+    loginfo("INFO: Phenotypes are treated as continuous\n")
     if (has.random.effect) {
       null <- lmer(as.formula(null.model), data = pheno, REML = FALSE)
     } else {
       null <- lm(as.formula(null.model), data = pheno)
     }
   }
-  mycat("Finished fitting null model\n")
+  null
+}
 
+meta.single.link.impl <- function(vcfFile, ## a vector of list
+                                  pedFile, ## a vector of list
+                                  pheno.name, ## which phenotype to use
+                                  output = ".",
+                                  test = "wG2",
+                                  detect = "never",
+                                  silent = T,
+                                  tail = "decreasing",
+                                  prefix = "",
+                                  plot.it = TRUE,
+                                  transform.pheno = NULL) {
+  start.time <- Sys.time()
+
+  ## set up log file
+  log.file <- file.path(getwd(), file.path(output, "log.txt"))
+  basicConfig()
+  addHandler(writeToFile, file = log.file)
+  ## if (file.exists(log.file)) {
+  ##   file.remove(log.file)
+  ## }
+  fns <- filename(output, prefix)  # generate output file names
+
+  ## examine input parameters
+  if (!tail %in% c("increasing", "decreasing", "both")) {
+    msg <- paste0("ERROR: Unrecognized option for tail [ ", tail, "]\n")
+    logerror(msg)
+    return(list(returncode = 1, message = msg))
+  }
+
+  ## record running environment
+  wd <- getwd()
+  loginfo(paste("Version:", packageVersion("LinkageAnalysis")))
+  loginfo(paste("Date:", Sys.time()))
+  loginfo(paste("Host:", Sys.info()["nodename"]))
+  loginfo(paste("Call:", deparse(sys.status()$sys.calls[[1]], width.cutoff = 500L)))
+  loginfo(paste("Directory:", wd))
+
+
+  ## read data
+  tmp <- load.vcf.ped(vcfFile, pedFile, pheno.name)
+  if (isSuccess(tmp)) {
+    loginfo("VCF/PED loading succeed.")
+    vcf <- tmp$vcf
+    ped <- tmp$ped
+  } else {
+    loginfo("VCF/PED loading failed.")
+    stop("VCF/PED loading failed.")
+  }
+  snapshot("meta.link", "dbg.meta.Rdata")
+
+  loginfo("Detecting phenotype type.\n")
+  tmp <- process.phenotype(ped, pheno.name, detect)
+  if (isSuccess(tmp)) {
+    ped <- tmp$ped
+    loginfo("Phenotype processed successfully.\n")
+  } else {
+    logerror("Phenotype has critical issues.\n")
+    stop("Phenotype has critical issues.")
+  }
+
+  ## make an output skeleton
+  nSite <- length(vcf$CHROM)
+  nas <- rep(NA, nSite)
+  gene <- str_replace(sapply(vcf$INFO, function(x) {str_split(x, ";")[[1]][1]}), "GENE=", "")
+  ret <- data.frame(Gene = gene, chr = vcf$CHROM, pos = vcf$POS,
+                    REF = nas ,HET =nas, VAR = nas,
+                    lethal = nas, additive = nas, recessive = nas, dominant = nas, TDT = nas,
+                    Penetrance_REF = nas, Penetrance_HET = nas, Penetrance_VAR = nas, Semidominance = nas)
+  rownames(ret) <- NULL
+
+  ## calculate lethal
+  type <- "lethal"
+  loginfo("Perform %s test.", type)
+  for (i in seq_len(nrow(ret))) {
+    ## calculate lethal
+    stopifnot(all(vcf$sampleId == ped$iid))
+    ## encode genotypes
+    tmp <- ped
+    tmp$gt <- convert_gt(vcf$GT[i,], "additive")
+    ## check mother genotypes
+    tmp <- crossCheckMotherGenotype(tmp)
+    ## count mother, offspring by their genotypes
+    tmp <- countForLethal(tmp)
+    ret[i, "lethal"] <- do.call(single.lethal.getPvalue, tmp)
+  }
+
+  # reduce data by:
+  #  1. remove mice with missing phenotype
+  #  2. select G3 mice
+  # get G3 mice
+  pheno <- ped[!is.na(ped[,pheno.name]), ]
+  pheno <- pheno[!is.na(pheno$gen), ]
+  pheno <- pheno[pheno$gen == 3, ]
+
+  # prepare genotype data
+  geno <- vcf$GT[, pheno$iid]  # G3 genotypes
+  nVariant <- nrow(geno)
+
+  # set-up null model
+  null.model <- create.null.model(pheno, pheno.name, test)
+  has.random.effect <- grepl("\\(", null.model)
+  isBinary <- is.factor(pheno[,pheno.name])
+
+  null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
+  if (isSuccess(null)) {
+    loginfo("Finished fitting null model\n")
+  } else {
+    logerror("Fitting null model failed!")
+    return(null)
+  }
+
+  ## start fitting alternative models for each variant
   snapshot("meta.link", "dbg.meta.fit.alt.Rdata")
   dist.plots <- list()
   for (i in 1:nVariant) {
-    ## for (i in 1:5) {
     if (i > 10 && is.debug.mode()) {
       cat("DEBUG skipped ", i, "th variant ..\n")
       next
     }
-    mycat("Process ", i, " out of ", nVariant, " variant : ", gene[i], "\n")
+    loginfo("Process %d  out of %d variant: %s", i, nVariant, gene[i])
     if (length(unique(geno[i,])) == 1) {
       ## skip mono site
       next
     }
     for (type in c("additive", "recessive", "dominant")) {
-      mycat("Perform ", type, " test.\n")
+      loginfo("Perform %s test.\n", type)
 
       ## encode genotypes
       pheno$gt <- convert_gt(geno[i,], type)
@@ -407,43 +476,19 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
 
       ## skip this site when the genotypes are monomorphic
       if (length(unique(pheno$gt)[!is.na(unique(pheno$gt))]) <= 1) {
-        mycat("Skip monomorphic site under ", type, " model\n")
+        loginfo("Skip monomorphic site under %s model", type)
         ret[i, type] <- pval <- 1
         next
       }
 
       # record graph
       if (type == "additive") {
-        ## cat ("store graph\n")
         dist.title <- sprintf("%s (%s:%s)", gene[i], as.character(ret$chr[i]), as.character(ret$pos[i]))
         dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, pheno.name, dist.title)
       }
 
       ## fit alternative model
       alt.model <- paste0(null.model, " + gt")
-      run.mixed.effect.alt.model <- function(isBinary, alt.model, pheno) {
-        alt <- tryCatch(
-            {
-              if (isBinary) {
-                alt <- glmer(as.formula(alt.model), data = pheno, family = "binomial")
-              } else {
-                alt <- lmer(as.formula(alt.model), data = pheno, REML = FALSE)
-              }
-            },
-            warning = function(warn) {
-              mycat("Fit [ ", alt.model, " binary =", isBinary, " ] has warnings ", str(err), "\n")
-              msg <- as.character(last.warning)
-              return(list(returncode = 1, message = msg, warning = warn, isBinary = isBinary, alt.model = alt.model))
-            },
-            error = function(err) {
-              mycat("Fit [ ", alt.model, " binary =", isBinary, " ] failed ", str(err), "\n")
-              ## print(err)
-              msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
-              return(list(returncode = 1, message = msg, error = err, isBinary = isBinary, alt.model = alt.model))
-            })
-        alt
-      }
-      assign("last.warning", NULL, envir = baseenv())
       if (has.random.effect) {
         alt <- run.mixed.effect.alt.model(isBinary, alt.model, pheno)
       } else {
@@ -451,19 +496,10 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       }
 
       ## check convergence
-      if (.hasSlot(alt, "optinfo")) {
-        converge =  is.null(alt@optinfo$conv$lme4$messages[[1]])
-        if (!converge) {
-          msg <- alt@optinfo$conv$lme4$messages[[1]]
-          err <- list(message = msg)
-          class(err) <- "error"
-          mycat("Model may suffer from convergence: ", msg, "\n")
-          alt <- list(returncode = 1, message = msg, error = err, isBinary = isBinary, alt.model = alt.model)
-        }
-      }
+      alt <- check.mixed.effect.alt.model.converge(alt)
 
       ## calculate p-value
-      if (!(is.list(alt) && !is.null(alt$returncode) && alt$returncode == 1)) {
+      if (isSuccess(alt)) {
         ## no error occurred, using tradition anova tests
         pval <- anova(null, alt)$"Pr(>Chisq)"[2]
         if (is.na(pval)) {
@@ -474,140 +510,37 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
           pval <- convert_tail(direction, pval, tail)
         }
       } else {
-        mycat("Refit alternative model using reduced data and Wald test\n")
-
-        run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno) {
-          fid <- numGT <- NULL ## bypass CRAN check
-          tmp <- ddply(pheno, .(fid), function(x) {
-            c(numGT = length(unique(x$gt)))})
-          tmp <- subset(tmp, numGT == 1)$fid
-          reduced.pheno <- subset (pheno, !fid %in% tmp )
-          reduced.model <- str_replace(alt.model, "\\(1\\|fid\\)", "fid")
-          if (length(unique(reduced.pheno$fid)) == 1) {
-            reduced.model <- str_replace(reduced.model, "\\+ fid", "")
-          }
-          reduced.model <- str_replace(reduced.model, "\\(1\\|mother\\)", "mother")
-          if (length(unique(reduced.pheno$mother)) == 1) {
-            reduced.model <- str_replace(reduced.model, "\\+ mother", "")
-          }
-          reduced.pheno$mother <- factor(reduced.pheno$mother)
-
-          ## check if the model can be fit
-          model.fittable <- TRUE
-          while (model.fittable) {
-            ## check sample size
-            if (nrow(reduced.pheno) == 0) {
-              mycat("Insufficient sample size to fit models, set pvalue as one\n")
-              pval <- 1
-              model.fittable <- FALSE
-              break
-            }
-
-            ## check factor variables
-            model.var <- str_split(reduced.model, " ")[[1]]
-            model.var <- model.var [!model.var %in% c("", "~", "1", "+") ]
-            model.var <- reduced.pheno[, model.var]
-            model.var <- model.var[complete.cases(model.var), ]
-            useless.var <- apply(model.var, 2, function(x) {length(unique(x)) == 1})
-
-            if (any(useless.var)) {
-              mycat("Reduced model has unless variable:", names(model.var)[useless.var], ", set pvalue to one.\n")
-              pval <- 1
-              model.fittable <- FALSE
-              break
-            }
-
-            ## check rank
-            reduced.model.matrix <- model.matrix(as.formula(reduced.model), reduced.pheno)
-            if ( qr(reduced.model.matrix)$rank < ncol(reduced.model.matrix)) {
-              mycat("Insufficient sample size to fit models, set pvalue to one.\n")
-              pval <- 1
-              model.fittable <- FALSE
-              break
-            }
-
-            ## try alt model
-            if (isBinary) {
-              reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
-              alt <- glm(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
-            } else {
-              alt <- lm(as.formula(reduced.model), data = reduced.pheno)
-            }
-            idx <- which(colnames(summary(alt)$coefficients) == "Pr(>|t|)" |
-                         colnames(summary(alt)$coefficients) == "Pr(>|z|)")
-            coef <- summary(alt)$coefficients
-            if ("gt" %in% rownames(coef) ) {
-              pval <- coef["gt", idx]
-              direction <- coef(alt)["gt"] > 0
-              if (!is.na(direction)) {
-                pval <- convert_tail(direction, pval, tail)
-              }
-            } else{
-              ## glm fitting failed, so set pval to one
-              mycat("Refit using glm() failed, set pvalue to one.\n")
-              pval <- 1
-            }
-            break
-          }
-          pval
-        }
-        pval <- run.fixed.effect.alt.model(isBinary, alt.model, pheno)
-
+        loginfo("Refit alternative model using reduced data and Wald test\n")
+        pval <- run.fixed.effect.alt.model(isBinary, alt.model, pheno, pheno.name, tail)
       }
       ret[i, type] <- pval
     }
     ret[i, "TDT"] <- NA     ## TODO: implement this
   }
 
-  ret$REF <- rowSums(geno == 0, na.rm = TRUE)
-  ret$HET <- rowSums(geno == 1, na.rm = TRUE)
-  ret$VAR <- rowSums(geno == 2, na.rm = TRUE)
-
-  if (isBinary) {
-    ret$Penetrance_REF <- apply(geno, 1, function(x) {idx <- x==0; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
-    ret$Penetrance_HET <- apply(geno, 1, function(x) {idx <- x==1; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
-    ret$Penetrance_ALT <- apply(geno, 1, function(x) {idx <- x==2; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
-  }
-  ret$Semidominance <- apply(geno, 1, function(x) {
-    idx <- x == 0; m0 <- mean(as.numeric(pheno[idx, pheno.name]), na.rm = TRUE)
-    idx <- x == 1; m1 <- mean(as.numeric(pheno[idx, pheno.name]), na.rm = TRUE)
-    idx <- x == 2; m2 <- mean(as.numeric(pheno[idx, pheno.name]), na.rm = TRUE)
-    ## cat(m0, m1,m2, "\n")
-    ret <- (m0 - m1) / (m0 - m2)
-    if (!is.na(ret)) {
-      if (ret > 1) { ret <- 1}
-      if (ret < 0) { ret <- 0}
-    }
-    ret
-  })
+  ret <- calc.genetic(ret, geno, pheno, pheno.name)
   head(ret)
 
   if (plot.it) {
     snapshot("plot.it", "plot.it.Rdata")
     ## draw linkage plot
-    linkage.plot.pdf <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
+    linkage.plot.pdf <- fns$linkage_file
     pdf(file = linkage.plot.pdf, height = 8, width = 20)
     plot.hist(pheno[,pheno.name], main = "Histogram of phenotype scores")
-    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$additive), main = "additive")
-    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "recessive")
-    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$dominant), main = "dominant")
+    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$additive) , main = "Manhattan Plot: additive  model ")
+    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "Manhattan Plot: recessive model ")
+    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$dominant) , main = "Manhattan Plot: dominant  model ")
     dev.off()
-    mycat("Generated ", linkage.plot.pdf, "\n")
+    loginfo(paste0("Generated ", linkage.plot.pdf, "\n"))
 
-    dist.plot.pdf <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = ""))
+    ## draw distribution plot
+    dist.plot.pdf <- fns$distrib_file
     ## require(gridExtra)
-    ## pdf(file = dist.plot.pdf, height = 8, width = 8)
     tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=2, ncol=2)))
-    ## print(ml)
-    ##dev.off()
     ggsave(dist.plot.pdf, tmp, width = 6, height = 6)
-    ## ggsave(dist.plot.pdf, ml, width = 8, height = 8)
-    mycat("Generated ", dist.plot.pdf, "\n")
+    loginfo(paste0("Generated ", dist.plot.pdf, "\n"))
   }
   write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
-
-  ## analysis <- list(test = test, detect = detect, tail = tail, prefix = prefix,
-  ##                  bin = bin, results = results, bonferroni = bonferroni)
   wd <- getwd()
   save(list = ls(), file = fns$results_file)
 
@@ -622,9 +555,23 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
                   detect,
                   tail))
   print(msg)
-  ## report("m", msg, fns$log_file)
-  mycat(msg, "\n")
-  mycat("Exit successfully\n")
+  loginfo(msg)
+  loginfo("Exit successfully")
   return(list(returncode = 0, message = "", result = ret))
 }
+
+check.mixed.effect.alt.model.converge <- function(alt) {
+        if (.hasSlot(alt, "optinfo")) {
+          converge =  is.null(alt@optinfo$conv$lme4$messages[[1]])
+          if (!converge) {
+            msg <- alt@optinfo$conv$lme4$messages[[1]]
+            err <- list(message = msg)
+            class(err) <- "error"
+            logwarn(paste0("Model may suffer from convergence: ", msg))
+            alt <- list(returncode = 1, message = msg, error = err)
+            return(alt)
+          }
+        }
+        return(alt)
+      }
 

@@ -96,6 +96,20 @@ single_lethal <- function(genotype, genes, phenotype, G2) {
 # this function runs random sampling to find the number of G3 mice with desired
 # genotype
 double_sample <- function(mother_gt1, mother_gt2, n_G3) {
+  convertToGenotypeChar <- function(x) {
+    if (is.na(x)) {
+      return ("unknown")
+    }
+    if (is.character(x)) {
+      return(x)
+    }
+    if (x > 1.5) { return("VAR")}
+    if (x < 0.5) { return("REF")}
+    return("HET")
+  }
+  mother_gt1 <- convertToGenotypeChar(mother_gt1)
+  mother_gt2 <- convertToGenotypeChar(mother_gt2)
+
   if (is.null(mother_gt1) || is.na(mother_gt1) ||
       mother_gt1 %in% c("FALSE", "FAILED", "ERROR")) {
     mother_gt1 <- "unknown"
@@ -142,6 +156,9 @@ calculate.prob <- function (obs, size, p) {
     save(list=ls(), file = "dbg.calculate.prob.Rsave")
   }
   N <- length (obs)
+  if (N == 0) {
+    return(1)
+  }
   ret <- list ()
   n.obs <- sum (obs)
   for (i in 1:N) {
@@ -192,18 +209,6 @@ double_lethal <- function(data, input, i, j) {
     return(1)
   }  # don't handle gene on chrX for the moment
 
-  if (FALSE)  {
-    cat ("DEBUG\n")
-    wd <- getwd()
-    fn <- "double_lethal.Rdata"
-    save(list = ls(), file = fn)
-    cat ( "double_lethal: data saved, ")
-    cat (normalizePath(fn))
-    cat ("\n")
-  }
-  if (FALSE) {
-    load("/home/zhanxw/test.run/Rpackage.FACS_screen_B1b_cells.R0511.test1/double_lethal.Rdata")
-  }
   ## MonteCarlo <- matrix(data = 0, nrow = n_trial, ncol = length(mothers))
   ## colnames(MonteCarlo) <- mothers
   prob <- rep(0, length(mothers))
@@ -246,22 +251,57 @@ double_lethal <- function(data, input, i, j) {
   return(pval)
 }
 
-##################################################
-## OBSOLETE CODE
-## # this function runs random sampling to find the number of G3 mice with VAR
-## # genotype
-## single_sample <- function(mother_gt, n_G3, n_trial) {
-##   if (is.null(mother_gt) || is.na(mother_gt)) {
-##     mother_gt <- "unknown"
-##   }  # corresponding G2 data does not exist
-##   if (mother_gt == "REF") {
-##     return(0)
-##   }
-##   if (mother_gt == "HET") {
-##     prob <- 1/4
-##   }
-##   if (!mother_gt %in% c("REF", "HET")) {
-##     prob <- 1/8
-##   }  # unknown, FAILED, FALSE
-##   return(rbinom(n = n_trial, size = n_G3, prob = prob))
-## }
+## use
+double.lethal.get.pvalue <- function(data) {
+  mothers <- as.vector(unique(data$mother))
+  mothers <- mothers[mothers != "."]
+  ## if (any(input$genes[c(i, j), "chr"] == "X")) {
+  ##   return(1)
+  ## }  # don't handle gene on chrX for the moment
+
+  ## MonteCarlo <- matrix(data = 0, nrow = n_trial, ncol = length(mothers))
+  ## colnames(MonteCarlo) <- mothers
+  prob <- rep(0, length(mothers))
+  numG3 <- rep(0, length(mothers))
+  numObs <- rep(0, length(mothers))
+  names(prob) <- names(numG3) <- names(numObs) <- mothers
+
+  for (mother in mothers) {
+    print(mother)
+    mother_gt1 <- data$gt1[data$iid == mother]
+    mother_gt2 <- data$gt2[data$iid == mother]
+    n_G3 <- sum(data$mother == mother)
+    # observfed HET/VAR, VAR/HET or VAR/VAR
+    tmp <- data[data$mother == mother, ]
+    obs <- sum((tmp$gt1 + tmp$gt2) >= 3)
+    ## print("obs")
+    ## print(obs)
+    if (is.na(obs)) {
+      ## (TODO) better handling NAs
+      next
+    }
+
+   ## (TODO) change below to assertations
+    ## # in case G2 genotype is unknown, if any child is VAR, the mother is definitely
+    ## # HET
+    ## if (any(data$gt1[data$mother == mother & !is.na(data$gt1)] == 2)) {
+    ##   mother_gt1 <- "HET"
+    ## }
+    ## if (any(data$gt2[data$mother == mother & !is.na(data$gt2)] == 2)) {
+    ##   mother_gt2 <- "HET"
+    ## }
+
+    prob[mother]  <- double_sample(mother_gt1, mother_gt2, n_G3)
+    numG3[mother] <- n_G3
+    numObs[mother] <- obs
+  }
+
+  ## collapsing
+  tmp <- data.frame(prob = prob, numG3 = numG3, numObs = numObs)
+  ## require(plyr)
+  tmp <- ddply(tmp, .(prob), function(x) {c(numG3 = sum(x$numG3), numObs = sum(x$numObs))})
+  tmp <- subset(tmp, prob != 0.0)
+  pval <- calculate.prob(obs = tmp$numObs, size = tmp$numG3, p = tmp$prob)
+
+  return(pval)
+}

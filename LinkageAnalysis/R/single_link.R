@@ -109,7 +109,7 @@
 #' single_link(main_file,G2_file,output=output,silent=TRUE,prefix="single")
 #' # if continuous numerical phenotype scores are given
 #' single_link(main_file_continuous,G2_file,output=output,silent=TRUE,prefix="single")
-single_link <- function(main_file = "", G2_file = "",
+single_link <- function(vcfFile, pedFile, pheno.name,
                         output = ".", test = "wG2",
                         detect = "never", silent = T, tail = "decreasing",
                         prefix = "", plot.it = TRUE,
@@ -117,12 +117,13 @@ single_link <- function(main_file = "", G2_file = "",
   log.file <- filename(output, prefix)$log_file
   ret <- tryCatch(
       {
-        ret <- single.link.impl(main_file, G2_file, output, test, detect, silent, tail,
+        ret <- single.link.impl(vcfFile, pedFile, pheno.name,
+                                output, test, detect, silent, tail,
                                 prefix, plot.it, transform.pheno)
         if (ret$returncode == 0) {
           msg <- paste("Exit successfully", ret$message, sep = " ")
         } else {
-          if (ret$returncode == 1 && ret$message == "dichotomize failed") {
+          if (isIgnorableError(ret)) {
             # this is a special error,
             # meaning we will treat it as normal exit but no output files
             # so returncode are changed from 1 to 0
@@ -148,210 +149,425 @@ single_link <- function(main_file = "", G2_file = "",
   return(ret)
 }
 
-single.link.impl <- function(main_file = "", G2_file = "",
+single.link.impl <- function(vcfFile, pedFile, pheno.name,
                              output = ".", test = "wG2",
                              detect = "never", silent = T, tail = "decreasing",
                              prefix = "", plot.it = TRUE,
                              transform.pheno = NULL) {
   start.time <- Sys.time()
 
+  ## set up log file
+  log.file <- file.path(getwd(), file.path(output, "log.txt"))
+  basicConfig()
+  addHandler(writeToFile, file = log.file)
   fns <- filename(output, prefix)  # generate output file names
+
+  # check validity of parameters
+  fns <- filename(output, prefix)  # generate output file names
+  if (!tail %in% c("increasing", "decreasing", "both")) {
+    report("e", "Unrecognized option for tail!", fns$log_file)
+  }
 
   report("m", paste("Version:", packageVersion("LinkageAnalysis")), fns$log_file)
   report("m", paste("Date:", Sys.time()), fns$log_file)
   report("m", paste("Host:", Sys.info()["nodename"]) , fns$log_file)
   report("m", paste("Call:", deparse(sys.status()$sys.calls[[1]])), fns$log_file)
 
-  if (!tail %in% c("increasing", "decreasing", "both")) {
-    report("e", "Unrecognized option for tail!", fns$log_file)
-  }
 
-  # read data
+  ## read data
   snapshot("single.link.impl", "debug.single.before.load.Rdata")
-  tmp <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)
-  ## Before data load can be possibily fail, just write pval = 1 as results
-  if (!is.null(tmp$data$genes)) {
-    ones <- rep(1, nrow(tmp$data$genes))
-    nas <- rep(NA, nrow(tmp$data$genes))
-
-    result <- tmp$data$genes
-    result$chr <- sub(pattern = "_.*", replacement = "", tmp$data$genes$Coordination, perl = TRUE)  # split Coordinates
-    result$pos <- sub(pattern = ".*_", replacement = "", tmp$data$genes$Coordination, perl = TRUE)
-
-    result$REF <- result$HET <- result$VAR <- nas
-    result$lethal <- result$additive <- result$recessive <- result$dominant <- result$TDT <- ones
-    result$Penetrance_REF <- result$Penetrance_HET <- result$Penetrance_VAR <- result$Semidominance <- nas
-    write.table(result, file = fns$csv_file, quote = F, row.names = F, sep = ",")
-  }
-  ## If data fails to load, quit
-  if (!is.null(tmp$data$obs)) {
+  tmp <- load.vcf.ped(vcfFile, pedFile, pheno.name)
+  if (isSuccess(tmp)) {
+    loginfo("VCF/PED loading succeed.")
+    vcf <- tmp$vcf
+    ped <- tmp$ped
   } else {
-    tmp$data$obs <- 0
+    loginfo("VCF/PED loading failed.")
+    stop("VCF/PED loading failed.")
   }
-  ## load failes, or no genotype
-  if (tmp$returncode || tmp$data$obs <= 0) {
-    ## no samples are genotypes, so quitting
-    tmp$returncode = 0
+  snapshot("single.link", "dbg.single.Rdata")
+
+  nFamily <- length(unique(ped$fid))
+  if (nFamily >  1) {
+    msg <- sprintf("Detect %d families in PED file, please try other analysis: meta.single.link().", length(unique(ped$fid)))
+    logerror(msg)
+    stop(msg)
+  } else if (nFamily <= 0){
+    msg <- "No family detected!"
+    logerror(msg)
+    stop(msg)
+  }
+
+  loginfo("Detecting phenotype type.\n")
+  tmp <- process.phenotype(ped, pheno.name, detect)
+  if (isSuccess(tmp)) {
+    ped <- tmp$ped
+    loginfo("Phenotype processed successfully.\n")
+  } else {
+    logerror("Phenotype has critical issues.\n")
+    print("tmp = ")
+    print(tmp)
     return(tmp)
   }
 
-  raw_data <- tmp$data
+  ## make an output skeleton
+  nSite <- length(vcf$CHROM)
+  nas <- rep(NA, nSite)
+  gene <- str_replace(sapply(vcf$INFO, function(x) {str_split(x, ";")[[1]][1]}), "GENE=", "")
+  ret <- data.frame(Gene = gene, chr = vcf$CHROM, pos = vcf$POS,
+                    REF = nas ,HET =nas, VAR = nas,
+                    lethal = nas, additive = nas, recessive = nas, dominant = nas, TDT = nas,
+                    Penetrance_REF = nas, Penetrance_HET = nas, Penetrance_VAR = nas, Semidominance = nas)
+  rownames(ret) <- NULL
+
   report("m", "Load data complete", fns$log_file)
   snapshot("single.link.impl", "debug.single.load.Rdata")
 
-  genes <- raw_data$genes
-  phenotype <- raw_data$phenotype
-  genotype <- raw_data$genotype
-  bin <- raw_data$bin
-  G2 <- raw_data$G2  # G2 is null is G2 dam genotype data are not available
-
-  # initialize
-  pt <- phenotype$phenotype
-  sex <- phenotype$sex
-  mother <- phenotype$mother
-  effective <- rep(TRUE, dim(genes)[1])  # whether stat test is carried out on each gene?
-
-  sig_gene <- as.data.frame(matrix(data = 1, ncol = 4, nrow = dim(genes)[1]))  # significance of genes are stored in this vector
-  colnames(sig_gene) <- c("additive", "recessive", "dominant", "TDT")
-
-  if (plot.it) {
-    # statistical testing and draw the distribution plot at the same time
-    pdf(file = fns$distrib_file, width = 6, height = 9)
-    par(mfrow = c(3, 2), mar = c(4, 4, 4, 4))
+  ## calculate lethal
+  type <- "lethal"
+  loginfo("Perform %s test.", type)
+  for (i in seq_len(nrow(ret))) {
+    ## calculate lethal
+    stopifnot(all(vcf$sampleId == ped$iid))
+    ## encode genotypes
+    tmp <- ped
+    tmp$gt <- convert_gt(vcf$GT[i,], "additive")
+    ## check mother genotypes
+    tmp <- crossCheckMotherGenotype(tmp)
+    ## count mother, offspring by their genotypes
+    tmp <- countForLethal(tmp)
+    ret[i, "lethal"] <- do.call(single.lethal.getPvalue, tmp)
   }
 
-  for (i in 1:dim(genes)[1]) {
-    # get genotype in character string
-    ## ## debug
-    ## if (i != 2) {
-    ##   next
-    ## }
-    ## if (genes$Gene[i] == "Kndc1") {
-    ##   browser()
-    ## } else {
-    ##   next
-    ## }
-    if (silent == F) {
-      msg <- paste("---", genes$Gene[i], "[", i, "of", dim(genes)[1], "]", "---")
-      report("m", msg, fns$log_file)
-    }
-    gt <- unlist(genotype[i, ])
-    if (sum(!is.na(convert_gt(gt, "additive"))) < 10) {
-      if (silent == F) {
-        report("m", "Skip because there are too few valid values", fns$log_file)
-      }
-      effective[i] <- FALSE
+  # reduce data by:
+  #  1. remove mice with missing phenotype
+  #  2. select G3 mice
+  # get G3 mice
+  pheno <- ped[!is.na(ped[,pheno.name]), ]
+  pheno <- pheno[!is.na(pheno$gen), ]
+  pheno <- pheno[pheno$gen == 3, ]
+
+  # prepare genotype data
+  geno <- vcf$GT[, pheno$iid]  # G3 genotypes
+  nVariant <- nrow(geno)
+
+  # set-up null model
+  null.model <- create.null.model(pheno, pheno.name, test)
+  has.random.effect <- grepl("\\(", null.model)
+  isBinary <- is.factor(pheno[,pheno.name])
+
+  null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
+  if (isSuccess(null)) {
+    loginfo("Finished fitting null model\n")
+  } else {
+    logerror("Fitting null model failed!")
+    return(null)
+  }
+
+  ## start fitting alternative models for each variant
+  snapshot("single.link", "dbg.single.fit.alt.Rdata")
+
+  dist.plots <- list()
+  for (i in 1:nVariant) {
+    if (i > 10 && is.debug.mode()) {
+      cat("DEBUG skipped ", i, "th variant ..\n")
       next
     }
-    if (silent == F) {
-      report("m", paste("# remaining mice", sum(!is.na(convert_gt(gt, "additive")))),
-             fns$log_file)
+    loginfo("Process %d  out of %d variant: %s", i, nVariant, gene[i])
+    if (length(unique(geno[i,])) == 1) {
+      ## skip mono site
+      next
     }
-
-    # glmer anova test of full model and reduced model for each of the three types
     for (type in c("additive", "recessive", "dominant")) {
-      data <- data.frame(pt = pt, sex = sex, gt = convert_gt(gt, type), mother = mother)
-      data <- data[!is.na(data$gt), ]
-      if (length(unique(data$gt)) > 1) {
-        ## use tryCatch to avoid crashing
-        pval <- tryCatch(
-            {
-              pval <- anova_test(data, bin, test, silent, fns$log_file, tail)$pvalue
-            },
-            error = function(err) {
-              snapshot("single.link.impl", "debug.single.link.impl.Rdata")
-              print(str(err))
-              print(err)
-              msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
-              msg <- paste("Fitting failed", msg, sep = " ")
-              report("m", msg, fns$log_file)
-              return(list(returncode = 1, message = msg))
-            })
-        if (is.list(pval) && pval$returncode == 1) {
-          sig_gene[i, type] <- pval
-        } else {
-          sig_gene[i, type] <- pval
-        }
-        if (sig_gene[i,type] == 0) {
-          sig_gene[i,type]=1e-300
-        }
+      loginfo("Perform %s test.\n", type)
+
+      ## encode genotypes
+      pheno$gt <- convert_gt(geno[i,], type)
+
+      ## impute missing genotypes to REF
+      pheno$gt[is.na(pheno$gt)] <- 0
+
+      ## skip this site when the genotypes are monomorphic
+      if (length(unique(pheno$gt)[!is.na(unique(pheno$gt))]) <= 1) {
+        loginfo("Skip monomorphic site under %s model", type)
+        ret[i, type] <- pval <- 1
+        next
       }
-    }
 
-    # TDT analysis
-    data <- data.frame(pt = pt, sex = sex, gt = convert_gt(gt, "additive"), mother = mother)
-    data <- data[!is.na(data$gt), ]
-    sig_gene[i, "TDT"] <- TDT(data, G2, genes[i, ], bin, fns$log_file)
+      # record graph
+      if (type == "additive") {
+        dist.title <- sprintf("%s (%s:%s)", gene[i], as.character(ret$chr[i]), as.character(ret$pos[i]))
+        dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, pheno.name, dist.title)
+      }
 
-    # distribution plot
-    if (length(unique(data$gt)) > 1 && plot.it) {
-      distrib_plot(data, genes[i, ], bin)
+      ## fit alternative model
+      alt.model <- paste0(null.model, " + gt")
+      if (has.random.effect) {
+        alt <- run.mixed.effect.alt.model(isBinary, alt.model, pheno)
+      } else {
+        alt <- list(returncode = 1, message = "no random effect")
+      }
+
+      ## check convergence
+      alt <- check.mixed.effect.alt.model.converge(alt)
+
+      ## calculate p-value
+      if (isSuccess(alt)) {
+        ## no error occurred, using tradition anova tests
+        pval <- anova(null, alt)$"Pr(>Chisq)"[2]
+        if (is.na(pval)) {
+          pval <- 1
+        }
+        direction <- fixef(alt)["gt"] > 0  # TRUE means protective effect, FALSE means harmful effect (desired)
+        if (!is.na(direction)) {
+          pval <- convert_tail(direction, pval, tail)
+        }
+      } else {
+        loginfo("Refit alternative model using reduced data and Wald test\n")
+        pval <- run.fixed.effect.alt.model(isBinary, alt.model, pheno, pheno.name, tail)
+      }
+      ret[i, type] <- pval
     }
+    ret[i, "TDT"] <- NA     ## TODO: implement this
   }
+
+  ret <- calc.genetic(ret, geno, pheno, pheno.name, isBinary)
+  head(ret)
 
   if (plot.it) {
-    dev.off()  #close the distribution plot
-    cat("Distribution plot saved at: ", fns$distrib_file, "\n")
-    ## par(mfrow = c(1, 1))
-  }
-
-  # flag lethal genes
-  genes$REF <- apply(genotype, 1, function(x) sum(x == "REF"))
-  genes$HET <- apply(genotype, 1, function(x) sum(x == "HET"))
-  genes$VAR <- apply(genotype, 1, function(x) sum(x == "VAR"))
-
-  if (silent == F) {
-    report("m", "Flag lethal genes\n", fns$log_file)
-  }
-  genes$lethal <- single_lethal(genotype, genes, phenotype, G2)
-
-  alpha <- 0.05
-  bonferroni <- alpha / sum(effective)
-  if (plot.it) {
-    # draw manhattan plot and diagnostic plot
-    if (silent == F) {
-      report("m", "Plotting Manhattan plots\n", fns$log_file)
-    }
-    pdf(file = fns$pdf_file, height = 8, width = 16)
-    par(mfrow = c(1, 1))
-
-    diagnostic(phenotype, bin, fns$log_file, raw_data$unconverted)  # draw diagnostic plot
-    # manhattan plot
-    for (type in c("additive", "recessive", "dominant", "TDT")) {
-      print(head(genes))
-      ## browser()
-      mht(genes, sig_gene, type, fns$log_file, test, bin, effective,
-          genotype)
-    }
+    snapshot("plot.it", "plot.it.Rdata")
+    ## draw linkage plot
+    linkage.plot.pdf <- fns$linkage_file
+    pdf(file = linkage.plot.pdf, height = 8, width = 20)
+    plot.hist(pheno[,pheno.name], main = "Histogram of phenotype scores")
+    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$additive) , main = "Manhattan Plot: additive  model ")
+    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "Manhattan Plot: recessive model ")
+    plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$dominant) , main = "Manhattan Plot: dominant  model ")
     dev.off()
-  }
-  # calculate penetrance and semidominance
-  genetics <- get_genetics(genes, phenotype, genotype, bin, raw_data$unconverted)
+    loginfo(paste0("Generated ", linkage.plot.pdf, "\n"))
 
-  # save results
-  if (silent == F) {
-    msg <- sprintf("Save results in CSV format - %s", fns$log_file)
-    report("m", msg, fns$log_file)
+    ## draw distribution plot
+    dist.plot.pdf <- fns$distrib_file
+    ## require(gridExtra)
+    tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=2, ncol=2)))
+    ggsave(dist.plot.pdf, tmp, width = 6, height = 6)
+    loginfo(paste0("Generated ", dist.plot.pdf, "\n"))
   }
-  results <- cbind(genes[, c("Gene", "chr", "pos", "REF", "HET", "VAR", "lethal")],
-                   sig_gene, genetics)
-  write.table(results, file = fns$csv_file, quote = F, row.names = F, sep = ",")
-
-  analysis <- list(test = test, detect = detect, tail = tail, prefix = prefix,
-                   bin = bin, results = results, bonferroni = bonferroni)
-  save(analysis, file = fns$results_file)
+  write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
+  wd <- getwd()
+  save(list = ls(), file = fns$results_file)
 
   end.time <- Sys.time()
   diff.time <- difftime(end.time, start.time, units = "secs")
-  msg <- (sprintf("single_link() finished in %.3f seconds - [main=%s;G2=%s;test=%s;detect=%s;tail=%s]",
+  msg <- (sprintf("single_link() finished in %.3f seconds - [vcfFile=%s;pedFile=%s;pheno.name=%s;test=%s;detect=%s;tail=%s]",
                   diff.time,
-                  main_file,
-                  G2_file,
+                  vcfFile,
+                  pedFile,
+                  pheno.name,
                   test,
                   detect,
                   tail))
   print(msg)
-  report("m", msg, fns$log_file)
-
-  return(list(returncode = 0, result = results))
+  loginfo(msg)
+  loginfo("Exit successfully")
+  return(list(returncode = 0, message = "", result = ret))
 }
+
+## single.link.impl.csv <- function(main_file = "", G2_file = "",
+##                              output = ".", test = "wG2",
+##                              detect = "never", silent = T, tail = "decreasing",
+##                              prefix = "", plot.it = TRUE,
+##                              transform.pheno = NULL) {
+##   start.time <- Sys.time()
+
+##   fns <- filename(output, prefix)  # generate output file names
+
+##   report("m", paste("Version:", packageVersion("LinkageAnalysis")), fns$log_file)
+##   report("m", paste("Date:", Sys.time()), fns$log_file)
+##   report("m", paste("Host:", Sys.info()["nodename"]) , fns$log_file)
+##   report("m", paste("Call:", deparse(sys.status()$sys.calls[[1]])), fns$log_file)
+
+##   if (!tail %in% c("increasing", "decreasing", "both")) {
+##     report("e", "Unrecognized option for tail!", fns$log_file)
+##   }
+
+##   # read data
+##   snapshot("single.link.impl", "debug.single.before.load.Rdata")
+##   tmp <- get_data(main_file, G2_file, fns$log_file, detect, transform.pheno)
+##   ## Before data load can be possibily fail, just write pval = 1 as results
+##   if (!is.null(tmp$data$genes)) {
+##     ones <- rep(1, nrow(tmp$data$genes))
+##     nas <- rep(NA, nrow(tmp$data$genes))
+
+##     result <- tmp$data$genes
+##     result$chr <- sub(pattern = "_.*", replacement = "", tmp$data$genes$Coordination, perl = TRUE)  # split Coordinates
+##     result$pos <- sub(pattern = ".*_", replacement = "", tmp$data$genes$Coordination, perl = TRUE)
+
+##     result$REF <- result$HET <- result$VAR <- nas
+##     result$lethal <- result$additive <- result$recessive <- result$dominant <- result$TDT <- ones
+##     result$Penetrance_REF <- result$Penetrance_HET <- result$Penetrance_VAR <- result$Semidominance <- nas
+##     write.table(result, file = fns$csv_file, quote = F, row.names = F, sep = ",")
+##   }
+##   ## If data fails to load, quit
+##   if (!is.null(tmp$data$obs)) {
+##   } else {
+##     tmp$data$obs <- 0
+##   }
+##   ## load failes, or no genotype
+##   if (tmp$returncode || tmp$data$obs <= 0) {
+##     ## no samples are genotypes, so quitting
+##     tmp$returncode = 0
+##     return(tmp)
+##   }
+
+##   raw_data <- tmp$data
+##   report("m", "Load data complete", fns$log_file)
+##   snapshot("single.link.impl", "debug.single.load.Rdata")
+
+##   genes <- raw_data$genes
+##   phenotype <- raw_data$phenotype
+##   genotype <- raw_data$genotype
+##   bin <- raw_data$bin
+##   G2 <- raw_data$G2  # G2 is null is G2 dam genotype data are not available
+
+##   # initialize
+##   pt <- phenotype$phenotype
+##   sex <- phenotype$sex
+##   mother <- phenotype$mother
+##   effective <- rep(TRUE, dim(genes)[1])  # whether stat test is carried out on each gene?
+
+##   sig_gene <- as.data.frame(matrix(data = 1, ncol = 4, nrow = dim(genes)[1]))  # significance of genes are stored in this vector
+##   colnames(sig_gene) <- c("additive", "recessive", "dominant", "TDT")
+
+##   if (plot.it) {
+##     # statistical testing and draw the distribution plot at the same time
+##     pdf(file = fns$distrib_file, width = 6, height = 9)
+##     par(mfrow = c(3, 2), mar = c(4, 4, 4, 4))
+##   }
+
+##   for (i in 1:dim(genes)[1]) {
+##     # get genotype in character string
+##     if (silent == F) {
+##       msg <- paste("---", genes$Gene[i], "[", i, "of", dim(genes)[1], "]", "---")
+##       report("m", msg, fns$log_file)
+##     }
+##     gt <- unlist(genotype[i, ])
+##     if (sum(!is.na(convert_gt(gt, "additive"))) < 10) {
+##       if (silent == F) {
+##         report("m", "Skip because there are too few valid values", fns$log_file)
+##       }
+##       effective[i] <- FALSE
+##       next
+##     }
+##     if (silent == F) {
+##       report("m", paste("# remaining mice", sum(!is.na(convert_gt(gt, "additive")))),
+##              fns$log_file)
+##     }
+
+##     # glmer anova test of full model and reduced model for each of the three types
+##     for (type in c("additive", "recessive", "dominant")) {
+##       data <- data.frame(pt = pt, sex = sex, gt = convert_gt(gt, type), mother = mother)
+##       data <- data[!is.na(data$gt), ]
+##       if (length(unique(data$gt)) > 1) {
+##         ## use tryCatch to avoid crashing
+##         pval <- tryCatch(
+##             {
+##               pval <- anova_test(data, bin, test, silent, fns$log_file, tail)$pvalue
+##             },
+##             error = function(err) {
+##               snapshot("single.link.impl", "debug.single.link.impl.Rdata")
+##               print(str(err))
+##               print(err)
+##               msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+##               msg <- paste("Fitting failed", msg, sep = " ")
+##               report("m", msg, fns$log_file)
+##               return(list(returncode = 1, message = msg))
+##             })
+##         if (is.list(pval) && pval$returncode == 1) {
+##           sig_gene[i, type] <- pval
+##         } else {
+##           sig_gene[i, type] <- pval
+##         }
+##         if (sig_gene[i,type] == 0) {
+##           sig_gene[i,type]=1e-300
+##         }
+##       }
+##     }
+
+##     # TDT analysis
+##     data <- data.frame(pt = pt, sex = sex, gt = convert_gt(gt, "additive"), mother = mother)
+##     data <- data[!is.na(data$gt), ]
+##     sig_gene[i, "TDT"] <- TDT(data, G2, genes[i, ], bin, fns$log_file)
+
+##     # distribution plot
+##     if (length(unique(data$gt)) > 1 && plot.it) {
+##       distrib_plot(data, genes[i, ], bin)
+##     }
+##   }
+
+##   if (plot.it) {
+##     dev.off()  #close the distribution plot
+##     cat("Distribution plot saved at: ", fns$distrib_file, "\n")
+##     ## par(mfrow = c(1, 1))
+##   }
+
+##   # flag lethal genes
+##   genes$REF <- apply(genotype, 1, function(x) sum(x == "REF"))
+##   genes$HET <- apply(genotype, 1, function(x) sum(x == "HET"))
+##   genes$VAR <- apply(genotype, 1, function(x) sum(x == "VAR"))
+
+##   if (silent == F) {
+##     report("m", "Flag lethal genes\n", fns$log_file)
+##   }
+##   genes$lethal <- single_lethal(genotype, genes, phenotype, G2)
+
+##   alpha <- 0.05
+##   bonferroni <- alpha / sum(effective)
+##   if (plot.it) {
+##     # draw manhattan plot and diagnostic plot
+##     if (silent == F) {
+##       report("m", "Plotting Manhattan plots\n", fns$log_file)
+##     }
+##     pdf(file = fns$pdf_file, height = 8, width = 16)
+##     par(mfrow = c(1, 1))
+
+##     diagnostic(phenotype, bin, fns$log_file, raw_data$unconverted)  # draw diagnostic plot
+##     # manhattan plot
+##     for (type in c("additive", "recessive", "dominant", "TDT")) {
+##       print(head(genes))
+##       ## browser()
+##       mht(genes, sig_gene, type, fns$log_file, test, bin, effective,
+##           genotype)
+##     }
+##     dev.off()
+##   }
+##   # calculate penetrance and semidominance
+##   genetics <- get_genetics(genes, phenotype, genotype, bin, raw_data$unconverted)
+
+##   # save results
+##   if (silent == F) {
+##     msg <- sprintf("Save results in CSV format - %s", fns$log_file)
+##     report("m", msg, fns$log_file)
+##   }
+##   results <- cbind(genes[, c("Gene", "chr", "pos", "REF", "HET", "VAR", "lethal")],
+##                    sig_gene, genetics)
+##   write.table(results, file = fns$csv_file, quote = F, row.names = F, sep = ",")
+
+##   analysis <- list(test = test, detect = detect, tail = tail, prefix = prefix,
+##                    bin = bin, results = results, bonferroni = bonferroni)
+##   save(analysis, file = fns$results_file)
+
+##   end.time <- Sys.time()
+##   diff.time <- difftime(end.time, start.time, units = "secs")
+##   msg <- (sprintf("single_link() finished in %.3f seconds - [main=%s;G2=%s;test=%s;detect=%s;tail=%s]",
+##                   diff.time,
+##                   main_file,
+##                   G2_file,
+##                   test,
+##                   detect,
+##                   tail))
+##   print(msg)
+##   report("m", msg, fns$log_file)
+
+##   return(list(returncode = 0, result = results))
+## }

@@ -43,3 +43,28 @@ get_genetics <- function(genes, phenotype, genotype, bin, unconverted) {
   genetics <- round(genetics, digits = 3)
   return(genetics)
 }
+
+calc.genetic <- function(ret, geno, pheno, pheno.name, isBinary) {
+  ret$REF <- rowSums(geno == 0, na.rm = TRUE)
+  ret$HET <- rowSums(geno == 1, na.rm = TRUE)
+  ret$VAR <- rowSums(geno == 2, na.rm = TRUE)
+
+  if (isBinary) {
+    ret$Penetrance_REF <- apply(geno, 1, function(x) {idx <- x==0; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
+    ret$Penetrance_HET <- apply(geno, 1, function(x) {idx <- x==1; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
+    ret$Penetrance_ALT <- apply(geno, 1, function(x) {idx <- x==2; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
+  }
+  ret$Semidominance <- apply(geno, 1, function(x) {
+    idx <- x == 0; m0 <- mean(as.numeric(pheno[idx, pheno.name]), na.rm = TRUE)
+    idx <- x == 1; m1 <- mean(as.numeric(pheno[idx, pheno.name]), na.rm = TRUE)
+    idx <- x == 2; m2 <- mean(as.numeric(pheno[idx, pheno.name]), na.rm = TRUE)
+    ## cat(m0, m1,m2, "\n")
+    ret <- (m0 - m1) / (m0 - m2)
+    if (!is.na(ret)) {
+      if (ret > 1) { ret <- 1}
+      if (ret < 0) { ret <- 0}
+    }
+    ret
+  })
+  ret
+}

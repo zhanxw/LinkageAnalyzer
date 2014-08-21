@@ -120,12 +120,12 @@ filename <- function(output, prefix) {
   log_file <- file.path(output, paste(prefix, "log.txt", sep = ""))
   unlink(log_file)
 
-  pdf_file <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
+  linkage_file <- file.path(output, paste(prefix, "linkage_plot.pdf", sep = ""))
   csv_file <- file.path(output, paste(prefix, "full_results.csv", sep = ""))
   distrib_file <- file.path(output, paste(prefix, "distribution_plot.pdf", sep = ""))
   results_file <- file.path(output, paste("results.RData", sep = ""))
 
-  return(list(log_file = log_file, pdf_file = pdf_file, csv_file = csv_file,
+  return(list(log_file = log_file, linkage_file = linkage_file, csv_file = csv_file,
               distrib_file = distrib_file, results_file = results_file))
 }
 
@@ -150,11 +150,12 @@ source.all.file <- function(dir = ".") {
   for (i in fn) {
     source(i)
   }
-  ## if (TRUE) {
-  ## library(stringr)
-  ## library(plyr)
-  ## library(ggplot2)
-  ## }
+ if (TRUE) {
+   library(stringr)
+   library(plyr)
+   library(ggplot2)
+   library(lme4)
+ }
 }
 if (FALSE) {
   source.all.file("~/test.run/LinkageAnalysis/R")
@@ -172,7 +173,16 @@ disabe.debug.mode <- function() {
   Sys.unsetenv("DEBUG_LINKAGE_ANALYSIS")
 }
 
+# force will dump if debug/non-debug mode
 snapshot <- function(call.func.name, fn, force = FALSE) {
+  if (interactive()) {
+    if (file.exists(fn)) {
+      load(fn, envir = parent.frame(2), verbose = TRUE)
+    } else {
+      cat(fn, " does not exists, skipped.\n")
+    }
+    return(0)
+  }
   if (is.debug.mode() || force) {
     if (!grepl("\\.Rdata", fn)) {
       fn <- paste0(fn, ".Rdata")
@@ -185,4 +195,20 @@ snapshot <- function(call.func.name, fn, force = FALSE) {
     save(list = ls(envir=env), file = fn, envir = env)
   }
   return(0)
+}
+
+isIgnorableError <- function(x) {
+  ## print("x = "); print(x); print(str(x))
+  ignorable.errors <- c("dichotomize failed")
+  if (!is.null(x$message) && x$message %in% ignorable.errors) {
+    return (TRUE)
+  }
+  return(FALSE)
+}
+
+isSuccess <- function(x) {
+  if (is.list(x) && !is.null(x$returncode) && x$returncode != 0) {
+    return (FALSE)
+  }
+  return(TRUE)
 }
