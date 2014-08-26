@@ -102,7 +102,7 @@ double_link <- function(vcfFile, pedFile, pheno.name,
         return(ret)
       },
       error = function(err) {
-        ## snapshot("double.link.impl", "debug.double.link.impl.Rdata")
+        snapshot("double.link.impl", "debug.double.link.impl.Rdata")
         print(str(err))
         print(err)
         msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
@@ -143,7 +143,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
 
 
   ## read data
-  snapshot("single.link.impl", "debug.single.before.load.Rdata")
+  snapshot("double.link.impl", "debug.double.before.load.Rdata")
   tmp <- load.vcf.ped(vcfFile, pedFile, pheno.name)
   if (isSuccess(tmp)) {
     loginfo("VCF/PED loading succeed.")
@@ -151,19 +151,19 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
     ped <- tmp$ped
   } else {
     loginfo("VCF/PED loading failed.")
-    stop("VCF/PED loading failed.")
+    return(list(returncode = 1, message = "VCF/PED loading failed."))
   }
-  snapshot("single.link", "dbg.single.Rdata")
+  snapshot("double.link", "dbg.double.Rdata")
 
   nFamily <- length(unique(ped$fid))
   if (nFamily >  1) {
     msg <- sprintf("Detect %d families in PED file, please try other analysis: meta.single.link().", length(unique(ped$fid)))
     logerror(msg)
-    stop(msg)
+    return(list(returncode = 1, message = msg))
   } else if (nFamily <= 0){
     msg <- "No family detected!"
     logerror(msg)
-    stop(msg)
+    return(list(returncode = 1, message = msg))
   }
 
   loginfo("Detecting phenotype type.\n")
@@ -173,7 +173,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
     loginfo("Phenotype processed successfully.\n")
   } else {
     logerror("Phenotype has critical issues.\n")
-    stop("Phenotype has critical issues.")
+    return(tmp)
   }
 
   ## make an output skeleton
@@ -194,7 +194,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
   ## rownames(ret) <- NULL
 
   report("m", "Load data complete", fns$log_file)
-  snapshot("single.link.impl", "debug.single.load.Rdata")
+  snapshot("double.link.impl", "debug.double.load.Rdata")
 
 
   ## calculate lethal (TODO)
@@ -228,16 +228,9 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
     }
   }
 
-  # reduce data by:
-  #  1. remove mice with missing phenotype
-  #  2. select G3 mice
-  # get G3 mice
-  pheno <- ped[!is.na(ped[,pheno.name]), ]
-  pheno <- pheno[!is.na(pheno$gen), ]
-  pheno <- pheno[pheno$gen == 3, ]
-
-  # prepare genotype data
-  geno <- vcf$GT[, pheno$iid]  # G3 genotypes
+  pheno.geno <- prepare.model.data(vcf, ped, pheno.name)
+  pheno <- pheno.geno$pheno
+  geno <- pheno.geno$geno
   nVariant <- nrow(geno)
 
   # set-up null model
@@ -254,8 +247,9 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
   }
 
   ## start fitting alternative models for each variant
-  snapshot("single.link", "dbg.single.fit.alt.Rdata")
+  snapshot("double.link", "dbg.double.fit.alt.Rdata")
 
+  dist.data <- list()
   dist.plots <- list()
   # statistical test
   null.model <- NULL
@@ -308,7 +302,6 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
       ## }
 
       # fit null model
-      ## source("/home/zhanxw/test.run/LinkageAnalysis/R/anova_test.R")
       if (is.null(null.model)) {
         cat("fit null model\n")
         assign("last.warning", NULL, envir = baseenv())
@@ -350,7 +343,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
                 pval <- anova_test(data, isBinary, test, silent, fns$log_file, tail, null.model = null.model)$pvalue
               },
               error = function(err) {
-                snapshot("single.link.impl", "debug.single.link.impl.Rdata")
+                snapshot("double.link.impl", "debug.double.link.impl.Rdata")
                 print(str(err))
                 print(err)
                 msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
@@ -392,7 +385,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
   report("m", paste("The Bonferroni cutoff is", pretty_num(cutoff_pair)), fns$log_file)
 
   if (plot.it) {
-    snapshot("single.plot.it", "dbg.single.plot.Rdata")
+    snapshot("double.plot.it", "dbg.double.plot.Rdata")
     # display results in heatmap (only genes that are not masked)
     if (silent == FALSE) {
       report("m", "Drawing heatmap", fns$log_file)

@@ -121,8 +121,8 @@ crossCheckMotherGenotype <- function(pheno, geno.name = "gt") {
       }
     }
   }
-  if (total.fix) {
-    cat("INFO: Fixed ", total.fix, " mother genotypes: ", unique(fixed.mom.id), "\n")
+  if (total.fix > 0) {
+    loginfo("Fixed %d mother genotypes: %s", total.fix, paste0(unique(fixed.mom.id), collapse = ","))
   }
   pheno
 }
@@ -240,7 +240,7 @@ run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno, pheno.name, t
     useless.var <- apply(model.var, 2, function(x) {length(unique(x)) == 1})
 
     if (any(useless.var)) {
-      loginfo(paste0("Reduced model has unless variable:", names(model.var)[useless.var], ", set pvalue to one."))
+      loginfo(paste0("Reduced model has useless variable:", names(model.var)[useless.var], ", set pvalue to one."))
       pval <- 1
       model.fittable <- FALSE
       break
@@ -304,9 +304,23 @@ create.null.model <- function(pheno, pheno.name, test) {
   null.model
 }
 
+isResponseContant <- function(model, pheno) {
+  pheno.name = str_extract(model, "^[^~ ]+")
+  y <- pheno[, pheno.name]
+  if (length(y) == 0 || length(unique(y)) == 1) {
+    return(TRUE)
+  }
+  return(FALSE)
+}
+
 fit.null.model <- function(null.model, pheno, isBinary, has.random.effect) {
+  loginfo("Fit null model: %s", null.model)
+  snapshot("fit.null.model", "fit.null.model.Rdata")
+  if (isResponseContant(null.model, pheno)) {
+    return(list(returncode = 1, message = "Response is constant - cannot fit the model"))
+  }
   if (isBinary) {
-    loginfo("INFO: Phenotypes are treated as binary\n")
+    loginfo("Phenotypes are treated as binary\n")
     null <- tryCatch(
         {
           if (has.random.effect) {
@@ -321,9 +335,9 @@ fit.null.model <- function(null.model, pheno, isBinary, has.random.effect) {
           msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
           return(list(returncode = 1, message = msg, error = err))
         })
-    if (is.list(null) && !is.null(null$returncode) && null$returncode == 1) {
-      loginfo("Refit null model using less covariates\n")
+    if (!isSuccess(null)) {
       null.model <- str_replace(null.model, "\\+ sex", "")
+      loginfo("Refit null model using less covariates: %s\n", null.model)
       if (has.random.effect) {
         null <- glmer(as.formula(null.model), data = pheno, family = "binomial")
       } else {
@@ -331,7 +345,7 @@ fit.null.model <- function(null.model, pheno, isBinary, has.random.effect) {
       }
     }
   } else { ## qtl
-    loginfo("INFO: Phenotypes are treated as continuous\n")
+    loginfo("Phenotypes are treated as continuous\n")
     if (has.random.effect) {
       null <- lmer(as.formula(null.model), data = pheno, REML = FALSE)
     } else {
@@ -387,7 +401,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     ped <- tmp$ped
   } else {
     loginfo("VCF/PED loading failed.")
-    stop("VCF/PED loading failed.")
+    return(list(returncode = 1, message = msg))
   }
   snapshot("meta.link", "dbg.meta.Rdata")
 
@@ -398,7 +412,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     loginfo("Phenotype processed successfully.\n")
   } else {
     logerror("Phenotype has critical issues.\n")
-    stop("Phenotype has critical issues.")
+    return(tmp)
   }
 
   ## make an output skeleton
@@ -408,7 +422,8 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   ret <- data.frame(Gene = gene, chr = vcf$CHROM, pos = vcf$POS,
                     REF = nas ,HET =nas, VAR = nas,
                     lethal = nas, additive = nas, recessive = nas, dominant = nas, TDT = nas,
-                    Penetrance_REF = nas, Penetrance_HET = nas, Penetrance_VAR = nas, Semidominance = nas)
+                    Penetrance_REF = nas, Penetrance_HET = nas, Penetrance_VAR = nas, Semidominance = nas,
+                    NMISS = nas, lethalCount = nas)
   rownames(ret) <- NULL
 
   ## calculate lethal
@@ -418,7 +433,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     ## calculate lethal
     stopifnot(all(vcf$sampleId == ped$iid))
     if (i > 10 && is.debug.mode()) {
-      cat("DEBUG skipped ", i, "th variant ..\n")
+      loginfo("DEBUG skipped ", i, "th variant ..\n")
       next
     }
     ## encode genotypes
@@ -429,18 +444,12 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     ## count mother, offspring by their genotypes
     tmp <- countForLethal(tmp)
     ret[i, "lethal"] <- do.call(single.lethal.getPvalue, tmp)
+    ret[i, "lethalCount"] <- paste0(tmp, collapse = ":")
   }
 
-  # reduce data by:
-  #  1. remove mice with missing phenotype
-  #  2. select G3 mice
-  # get G3 mice
-  pheno <- ped[!is.na(ped[,pheno.name]), ]
-  pheno <- pheno[!is.na(pheno$gen), ]
-  pheno <- pheno[pheno$gen == 3, ]
-
-  # prepare genotype data
-  geno <- vcf$GT[, pheno$iid]  # G3 genotypes
+  pheno.geno <- prepare.model.data(vcf, ped, pheno.name)
+  pheno <- pheno.geno$pheno
+  geno <- pheno.geno$geno
   nVariant <- nrow(geno)
 
   # set-up null model
@@ -448,6 +457,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   has.random.effect <- grepl("\\(", null.model)
   isBinary <- is.factor(pheno[,pheno.name])
 
+  # fit null model
   null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
   if (isSuccess(null)) {
     loginfo("Finished fitting null model\n")
@@ -457,7 +467,9 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   }
 
   ## start fitting alternative models for each variant
-  snapshot("meta.link", "dbg.meta.fit.alt.Rdata")
+  snapshot("meta.link", "dbg.meta.fit.alt.Rdata", force = TRUE)
+
+  dist.data <- list()
   dist.plots <- list()
   for (i in 1:nVariant) {
     if (i > 10 && is.debug.mode()) {
@@ -465,30 +477,49 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       next
     }
     loginfo("Process %d  out of %d variant: %s", i, nVariant, gene[i])
-    if (length(unique(geno[i,])) == 1) {
-      ## skip mono site
+
+    # record data
+    pheno$gt <- convert_gt(geno[i,], "additive")
+    dist.data[[length(dist.data) + 1]] <- pheno
+
+    ## skip mono site
+    if (length(unique(pheno$gt)) == 1) {
+      loginfo("Skip monomorphic site")
       next
     }
+
+    # store null model
+    null.orig <- null
+    pheno.orig <- pheno
+
+    # handle missing
+    ret[i, "NMISS"] <- NMISS <- sum(is.na(pheno$gt))
+    if (NMISS > 0 ) {
+      loginfo("Refit null model due to %d missing genotypes", sum(is.na(pheno$gt)))
+      pheno <- pheno[!is.na(pheno$gt), ]
+      null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
+      if (!isSuccess(null)) {
+        logwarn("Null model fit failed.")
+        null <- null.orig
+        pheno <- pheno.orig
+        next
+      }
+    }
+
+    # calcualte each model
+    raw.gt <- pheno$gt
     for (type in c("additive", "recessive", "dominant")) {
-      loginfo("Perform %s test.\n", type)
+      loginfo("Perform %s test on %d samples", type, nrow(pheno))
 
       ## encode genotypes
-      pheno$gt <- convert_gt(geno[i,], type)
-
-      ## impute missing genotypes to REF
-      pheno$gt[is.na(pheno$gt)] <- 0
+      pheno$gt <- convert_gt(raw.gt, type)
+      stopifnot(all(!is.na(pheno$gt)))
 
       ## skip this site when the genotypes are monomorphic
       if (length(unique(pheno$gt)[!is.na(unique(pheno$gt))]) <= 1) {
         loginfo("Skip monomorphic site under %s model", type)
         ret[i, type] <- pval <- 1
         next
-      }
-
-      # record graph
-      if (type == "additive") {
-        dist.title <- sprintf("%s (%s:%s)", gene[i], as.character(ret$chr[i]), as.character(ret$pos[i]))
-        dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, pheno.name, dist.title)
       }
 
       ## fit alternative model
@@ -520,6 +551,17 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       ret[i, type] <- pval
     }
     ret[i, "TDT"] <- NA     ## TODO: implement this
+
+    ## restore null model
+    null <- null.orig
+    pheno <- pheno.orig
+
+    # record graph
+    if (any(ret[i, c("additive", "recessive", "dominant")] < 0.05, na.rm = TRUE)) {
+      pheno$gt <- convert_gt(geno[i,], "additive")
+      dist.title <- sprintf("%s (%s:%s)", gene[i], as.character(ret$chr[i]), as.character(ret$pos[i]))
+      dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, pheno.name, dist.title)
+    }
   }
 
   snapshot("calc.genetic", "calc.genetic.Rdata")
@@ -527,7 +569,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   head(ret)
 
   if (plot.it) {
-    snapshot("plot.it", "plot.it.Rdata")
+    snapshot("plot.it", "plot.it.Rdata", force = TRUE)
     ## draw linkage plot
     linkage.plot.pdf <- fns$linkage_file
     pdf(file = linkage.plot.pdf, height = 8, width = 20)
@@ -536,16 +578,18 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "Manhattan Plot: recessive model ")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$dominant) , main = "Manhattan Plot: dominant  model ")
     dev.off()
-    loginfo(paste0("Generated ", linkage.plot.pdf, "\n"))
+    loginfo(paste0("Generated ", linkage.plot.pdf))
 
     ## draw distribution plot
     dist.plot.pdf <- fns$distrib_file
+    loginfo("%d distribution plots to be generated", length(dist.plots))
     ## require(gridExtra)
-    tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=2, ncol=2)))
-    ggsave(dist.plot.pdf, tmp, width = 6, height = 6)
-    loginfo(paste0("Generated ", dist.plot.pdf, "\n"))
+    tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=2, ncol=1)))
+    ggsave(dist.plot.pdf, tmp, width = 8, height = 16)
+    loginfo(paste0("Generated ", dist.plot.pdf))
   }
   write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
+  loginfo(paste0("Generated ", fns$csv_file))
   wd <- getwd()
   save(list = ls(), file = fns$results_file)
 
@@ -566,17 +610,16 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
 }
 
 check.mixed.effect.alt.model.converge <- function(alt) {
-        if (.hasSlot(alt, "optinfo")) {
-          converge =  is.null(alt@optinfo$conv$lme4$messages[[1]])
-          if (!converge) {
-            msg <- alt@optinfo$conv$lme4$messages[[1]]
-            err <- list(message = msg)
-            class(err) <- "error"
-            logwarn(paste0("Model may suffer from convergence: ", msg))
-            alt <- list(returncode = 1, message = msg, error = err)
-            return(alt)
-          }
-        }
-        return(alt)
-      }
-
+  if (.hasSlot(alt, "optinfo")) {
+    converge =  is.null(alt@optinfo$conv$lme4$messages[[1]])
+    if (!converge) {
+      msg <- alt@optinfo$conv$lme4$messages[[1]]
+      err <- list(message = msg)
+      class(err) <- "error"
+      logwarn(paste0("Model may suffer from convergence: ", msg))
+      alt <- list(returncode = 1, message = msg, error = err)
+      return(alt)
+    }
+  }
+  return(alt)
+}

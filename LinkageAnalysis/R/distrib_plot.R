@@ -45,10 +45,10 @@ plot.distribution <- function(pheno, pheno.name, main = "") {
   pheno$family = pheno$fid
   pheno$y <- pheno[, pheno.name]
   pheno$y <- as.numeric(pheno$y)
-  g <- ggplot(pheno, aes(x = gt, y = y, col = mother, pch = family)) +
+  ##pheno$pch <- rep_len(x = seq(6), length.out = nrow(pheno))
+  g <- ggplot(pheno, aes(x = gt, y = y, col = family)) +
     geom_point(position = position_jitter(width = 0.2)) +
-      xlab("Genotype") +
-        ylab("Phenotype") +
-          ggtitle(main)
+      xlab("Genotype") + ylab("Phenotype") +
+        xlim(-0.5, 2.5) + ggtitle(main)
   return(g)
 }

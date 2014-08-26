@@ -1,6 +1,11 @@
-todo 2.2.9
+todo 2.2.10
 * Finish plots in double.link
+2.2.9
+* Missing genotypes are properly handled
+* Improve manhattan plots (less cluttered)
+* Improve distribution plot (only plot when p-value < 0.05 in add/dom/rec models)
 * Fix issue 177
+* Fix issue 178
 2.2.8
 * Switch main/g2 format to VCF/PED formats for single/double linkage (statistics)
 * Clean up codes

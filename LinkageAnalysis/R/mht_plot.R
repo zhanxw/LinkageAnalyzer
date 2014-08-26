@@ -128,7 +128,7 @@ mht <- function(genes, sig_gene, type, log_file, test, bin, effective, genotype 
 #' @return NULL
 plot.manhattan <- function(data, main = "") {
   d <- data
-  snapshot("plot.manhattan", "plot.Rdata")
+  snapshot("plot.manhattan", "plot.manhattan.Rdata")
   stopifnot(is.data.frame(d))
   stopifnot("Chrom" %in% names(d) )
   stopifnot("Position" %in% names(d) )
@@ -178,6 +178,7 @@ plot.manhattan <- function(data, main = "") {
   chrom.mid <- 0.5 * (chrom.right + chrom.left)
   label <- c(paste("chr", seq(mm10.num.chroms - 2), sep = ""), "chrX", "chrY")
   xlim <- c(min(chrom.left), max(chrom.right))
+  d$Pval[d$Pval == 0.0] <- .Machine$double.xmin
   ylim <- c(0, max(4, -log10(d$Pval), na.rm= TRUE) * 1.1 + 4) # 4: annotate genes
   offset <- chrom.left[match(d$Chrom, mm10.chroms$chrom)] + d$Position
   col <- Chrom.color[match(d$Chrom, mm10.chroms$chrom)]

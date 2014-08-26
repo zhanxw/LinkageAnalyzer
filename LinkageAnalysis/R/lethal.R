@@ -253,7 +253,7 @@ double_lethal <- function(data, input, i, j) {
 
 ## use
 double.lethal.get.pvalue <- function(data) {
-  mothers <- as.vector(unique(data$mother))
+  mothers <- as.vector(unique(data$mother[data$gen == 3]))
   mothers <- mothers[mothers != "."]
   ## if (any(input$genes[c(i, j), "chr"] == "X")) {
   ##   return(1)
@@ -267,7 +267,7 @@ double.lethal.get.pvalue <- function(data) {
   names(prob) <- names(numG3) <- names(numObs) <- mothers
 
   for (mother in mothers) {
-    print(mother)
+    # print(mother)
     mother_gt1 <- data$gt1[data$iid == mother]
     mother_gt2 <- data$gt2[data$iid == mother]
     n_G3 <- sum(data$mother == mother)

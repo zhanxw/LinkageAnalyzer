@@ -183,7 +183,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
     ped <- tmp$ped
   } else {
     loginfo("VCF/PED loading failed.")
-    stop("VCF/PED loading failed.")
+    return(list(returncode = 1, message = "VCF/PED loading failed."))
   }
   snapshot("single.link", "dbg.single.Rdata")
 
@@ -191,11 +191,11 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
   if (nFamily >  1) {
     msg <- sprintf("Detect %d families in PED file, please try other analysis: meta.single.link().", length(unique(ped$fid)))
     logerror(msg)
-    stop(msg)
+    return(list(returncode = 1, message = msg))
   } else if (nFamily <= 0){
     msg <- "No family detected!"
     logerror(msg)
-    stop(msg)
+    return(list(returncode = 1, message = msg))
   }
 
   loginfo("Detecting phenotype type.\n")
@@ -205,8 +205,6 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
     loginfo("Phenotype processed successfully.\n")
   } else {
     logerror("Phenotype has critical issues.\n")
-    print("tmp = ")
-    print(tmp)
     return(tmp)
   }
 
@@ -217,7 +215,8 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
   ret <- data.frame(Gene = gene, chr = vcf$CHROM, pos = vcf$POS,
                     REF = nas ,HET =nas, VAR = nas,
                     lethal = nas, additive = nas, recessive = nas, dominant = nas, TDT = nas,
-                    Penetrance_REF = nas, Penetrance_HET = nas, Penetrance_VAR = nas, Semidominance = nas)
+                    Penetrance_REF = nas, Penetrance_HET = nas, Penetrance_VAR = nas, Semidominance = nas,
+                    NMISS = nas, lethalCount = nas)
   rownames(ret) <- NULL
 
   report("m", "Load data complete", fns$log_file)
@@ -237,18 +236,12 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
     ## count mother, offspring by their genotypes
     tmp <- countForLethal(tmp)
     ret[i, "lethal"] <- do.call(single.lethal.getPvalue, tmp)
+    ret[i, "lethalCount"] <- paste0(tmp, collapse = ":")
   }
 
-  # reduce data by:
-  #  1. remove mice with missing phenotype
-  #  2. select G3 mice
-  # get G3 mice
-  pheno <- ped[!is.na(ped[,pheno.name]), ]
-  pheno <- pheno[!is.na(pheno$gen), ]
-  pheno <- pheno[pheno$gen == 3, ]
-
-  # prepare genotype data
-  geno <- vcf$GT[, pheno$iid]  # G3 genotypes
+  pheno.geno <- prepare.model.data(vcf, ped, pheno.name)
+  pheno <- pheno.geno$pheno
+  geno <- pheno.geno$geno
   nVariant <- nrow(geno)
 
   # set-up null model
@@ -256,6 +249,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
   has.random.effect <- grepl("\\(", null.model)
   isBinary <- is.factor(pheno[,pheno.name])
 
+  # fit null model
   null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
   if (isSuccess(null)) {
     loginfo("Finished fitting null model\n")
@@ -265,8 +259,9 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
   }
 
   ## start fitting alternative models for each variant
-  snapshot("single.link", "dbg.single.fit.alt.Rdata")
+  snapshot("single.link", "dbg.single.fit.alt.Rdata", force = TRUE)
 
+  dist.data <- list()
   dist.plots <- list()
   for (i in 1:nVariant) {
     if (i > 10 && is.debug.mode()) {
@@ -274,30 +269,49 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
       next
     }
     loginfo("Process %d  out of %d variant: %s", i, nVariant, gene[i])
-    if (length(unique(geno[i,])) == 1) {
-      ## skip mono site
+
+    # record data
+    pheno$gt <- convert_gt(geno[i,], "additive")
+    dist.data[[length(dist.data) + 1]] <- pheno
+
+    ## skip mono site
+    if (length(unique(pheno$gt)) == 1) {
+      loginfo("Skip monomorphic site")
       next
     }
+
+    # store null model
+    null.orig <- null
+    pheno.orig <- pheno
+
+    # handle missing
+    ret[i, "NMISS"] <- NMISS <- sum(is.na(pheno$gt))
+    if (NMISS > 0 ) {
+      loginfo("Refit null model due to %d missing genotypes", sum(is.na(pheno$gt)))
+      pheno <- pheno[!is.na(pheno$gt), ]
+      null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
+      if (!isSuccess(null)) {
+        logwarn("Null model fit failed.")
+        null <- null.orig
+        pheno <- pheno.orig
+        next
+      }
+    }
+
+    # calcualte each model
+    raw.gt <- pheno$gt
     for (type in c("additive", "recessive", "dominant")) {
       loginfo("Perform %s test.\n", type)
 
       ## encode genotypes
-      pheno$gt <- convert_gt(geno[i,], type)
-
-      ## impute missing genotypes to REF
-      pheno$gt[is.na(pheno$gt)] <- 0
+      pheno$gt <- convert_gt(raw.gt, type)
+      stopifnot(all(!is.na(pheno$gt)))
 
       ## skip this site when the genotypes are monomorphic
       if (length(unique(pheno$gt)[!is.na(unique(pheno$gt))]) <= 1) {
         loginfo("Skip monomorphic site under %s model", type)
         ret[i, type] <- pval <- 1
         next
-      }
-
-      # record graph
-      if (type == "additive") {
-        dist.title <- sprintf("%s (%s:%s)", gene[i], as.character(ret$chr[i]), as.character(ret$pos[i]))
-        dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, pheno.name, dist.title)
       }
 
       ## fit alternative model
@@ -329,8 +343,20 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
       ret[i, type] <- pval
     }
     ret[i, "TDT"] <- NA     ## TODO: implement this
+
+    ## restore null model
+    null <- null.orig
+    pheno <- pheno.orig
+
+    # record graph
+    if (any(ret[i, c("additive", "recessive", "dominant")] < 0.05, na.rm = TRUE)) {
+      pheno$gt <- convert_gt(geno[i,], "additive")
+      dist.title <- sprintf("%s (%s:%s)", gene[i], as.character(ret$chr[i]), as.character(ret$pos[i]))
+      dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, pheno.name, dist.title)
+    }
   }
 
+  snapshot("calc.genetic", "calc.genetic.Rdata")
   ret <- calc.genetic(ret, geno, pheno, pheno.name, isBinary)
   head(ret)
 
@@ -344,16 +370,18 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$recessive), main = "Manhattan Plot: recessive model ")
     plot.manhattan(data.frame(Chrom = ret$chr, Position = ret$pos, Gene = ret$Gene, Pval = ret$dominant) , main = "Manhattan Plot: dominant  model ")
     dev.off()
-    loginfo(paste0("Generated ", linkage.plot.pdf, "\n"))
+    loginfo(paste0("Generated ", linkage.plot.pdf))
 
     ## draw distribution plot
     dist.plot.pdf <- fns$distrib_file
+    loginfo("%d distribution plots to be generated", length(dist.plots))
     ## require(gridExtra)
     tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=2, ncol=2)))
     ggsave(dist.plot.pdf, tmp, width = 6, height = 6)
-    loginfo(paste0("Generated ", dist.plot.pdf, "\n"))
+    loginfo(paste0("Generated ", dist.plot.pdf))
   }
   write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
+  loginfo(paste0("Generated ", fns$csv_file))
   wd <- getwd()
   save(list = ls(), file = fns$results_file)
 

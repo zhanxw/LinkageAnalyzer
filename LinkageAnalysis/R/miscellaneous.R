@@ -31,9 +31,9 @@ convert_gt <- function(gt, type) {
   if (type == "additive") {
     # do nothing
   } else if (type == "recessive") {
-    gt <- ifelse(gt > 0.5, 1, 0)
+    gt <- ifelse(gt > 1.5, 1, 0) ##  (1.5, 2] => 1, [0, 1.5] => 0
   } else if (type == "dominant") {
-    gt <- ifelse(gt > 0.5, 1, 0)
+    gt <- ifelse(gt > 0.5, 1, 0) ##  (0.5, 2] => 1, [0, 0.5] => 0
   }
   return(gt)
 }

@@ -516,7 +516,7 @@ get.vcf <- function(vcfFile, log_file) {
     ## remove QUAL != "PASS"
     idx <- (ret[, "FILTER"] == "PASS")
     if (sum(!idx)) {
-      cat("INFO: ", sum(!idx), " variant site do not PASS filter\n")
+      loginfo("INFO: %d variant site do not PASS filter", sum(!idx))
     }
     ret <- ret[idx, ]
 
@@ -524,6 +524,7 @@ get.vcf <- function(vcfFile, log_file) {
     site <- ret[, 1:8]
     indv <- ret[, -(1:9)]
     if (length(unique(ret[,9])) != 1) {
+      logwarn("Format are not consistent")
       warnings("Format are not consistent")
     }
     fmt <- str_split(ret[1,9], ":")[[1]]
@@ -534,7 +535,7 @@ get.vcf <- function(vcfFile, log_file) {
       ret.indv[[fmt[i]]] <- sub(":.*", "", tmp)
       tmp <- sub('[^:]*:', "", tmp)
 
-      cat("Process FORMAT tag ", fmt[i], "\n")
+      loginfo("Process FORMAT tag %s", fmt[i])
       if (fmt[i] == "GT") {
         func <- function(x) {
           if (x == "0/0") {
@@ -648,7 +649,7 @@ vcf.delete.sample.by.index <- function(vcf, index) {
 vcf.summarize <- function(vcf) {
   nvar <- length(vcf$CHROM)
   nsample <- ncol(vcf$GT)
-  cat("VCF contains ", nvar, " variants and ", nsample, " samples\n")
+  loginfo("VCF contains %d variants and %d samples", nvar, nsample)
 }
 
 #' Summarize ped data
@@ -709,10 +710,6 @@ load.vcf.ped <- function(vcfFile, pedFile, pheno.name) {
   loginfo("Remove %d samples from VCF as they are not in PED.", sum(idx))  ## some sample may not be screened
   vcf <- vcf.delete.sample.by.index(vcf, idx)
 
-  idx <- apply(vcf$GT, 2, function(x) {all(x[!is.na(x)] == 0)})
-  loginfo("Remove %d samples from VCF as their genotypes are REFs only.", sum(idx))
-  vcf <- vcf.delete.sample.by.index(vcf, idx)
-
   tmp <- setdiff(ped$iid, vcf$sampleId)
   loginfo("Add %d samples to VCF according to PED file.", length(tmp))
   vcf <- vcf.add.sample(vcf, tmp)
@@ -724,6 +721,65 @@ load.vcf.ped <- function(vcfFile, pedFile, pheno.name) {
   stopifnot(all(vcf$sampleId == ped$iid))
 
   return(list(vcf = vcf, ped = ped))
+}
+
+## prepare genotype and phenotype for additive/recessive/dominant model
+prepare.model.data <- function(vcf, ped, pheno.name) {
+  snapshot("prepare.model.data", "prepare.model.data.Rdata")
+  ## remove suspicious samples (all REFs)
+  idx <- apply(vcf$GT, 2, function(x) {all(x[!is.na(x)] == 0)})
+  bad.sample <- vcf$sampleId[idx]
+  if (length(bad.sample) > 0 ) {
+    msg <- sprintf("Remove %d samples from VCF as their genotypes are REFs only: %s", sum(idx), paste(bad.sample, collapse = ","))
+    g3.bad.sample <- subset(ped, ped$iid %in% bad.sample & ped$gen == 3)$iid
+    if (length(g3.bad.sample) > 0) {
+      msg <- c(msg, sprintf("Among them, %d are G3: %s", length(g3.bad.sample), paste(g3.bad.sample, collapse = ",")))
+    } else {
+      msg <- c(msg, sprintf("Among them, 0 are G3"))
+    }
+  }  else {
+    msg <- sprintf("Remove 0 samples from VCF as their genotypes are REFs only.")
+  }
+  loginfo(msg)
+  vcf <- vcf.delete.sample.by.index(vcf, idx)
+
+  ## for superpedigree, when family A has genotyped for a variant but not family B,
+  ## we need to manually impute REF for family B for such variant
+  for (i in seq_len(nrow(vcf$GT))) {
+    tmp <- data.frame(geno = vcf$GT[i,], iid = vcf$sampleId)
+    tmp <- join(tmp, ped[,c("fid", "iid")], by = "iid")
+    tmp2 <- ddply(tmp, .(fid), function(x){c(allMissing = (all(is.na(x$geno))))})
+    idx <- tmp$fid %in% subset(tmp2, allMissing == TRUE)$fid
+    vcf$GT[i, idx] <- 0  ## impute as REF
+  }
+  # reduce data by:
+  #  1. remove mice with missing phenotype
+  #  2. select G3 mice
+  # get G3 mice
+  pheno <- ped[!is.na(ped[,pheno.name]), ]
+  pheno <- pheno[!is.na(pheno$gen), ]
+  pheno <- pheno[pheno$gen == 3, ]
+  pheno <- pheno[pheno$iid %in% colnames(vcf$GT), ]
+
+  # prepare genotype data
+  geno <- vcf$GT[, pheno$iid]  # G3 genotypes
+  stopifnot(all(colnames(geno) == pheno$iid))
+
+  # check missing rate
+  missing <- rowMeans(is.na(geno))
+  idx <- missing > 0.5
+  msg <- sprintf("%d variants have >0.5 missing rate", sum(idx))
+  logwarn(msg)
+  missing <- colMeans(is.na(geno))
+  idx <- missing > 0.5
+  msg <- sprintf("%d samples have >0.5 missing rate", sum(idx))
+  logwarn(msg)
+
+  # report # of mice for models
+  msg <- sprintf("%d mice will be analyzed in models", nrow(vcf$GT))
+  loginfo(msg)
+
+  list(pheno = pheno, geno = geno)
 }
 
 # if @param is "auto" then dichotomize phenotype,

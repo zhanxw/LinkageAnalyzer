@@ -52,7 +52,7 @@ calc.genetic <- function(ret, geno, pheno, pheno.name, isBinary) {
   if (isBinary) {
     ret$Penetrance_REF <- apply(geno, 1, function(x) {idx <- x==0; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
     ret$Penetrance_HET <- apply(geno, 1, function(x) {idx <- x==1; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
-    ret$Penetrance_ALT <- apply(geno, 1, function(x) {idx <- x==2; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
+    ret$Penetrance_VAR <- apply(geno, 1, function(x) {idx <- x==2; mean(pheno[idx, pheno.name] == "AFFECTED", na.rm = TRUE)})
   }
   ret$Semidominance <- apply(geno, 1, function(x) {
     idx <- x == 0; m0 <- mean(as.numeric(pheno[idx, pheno.name]), na.rm = TRUE)
