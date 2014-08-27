@@ -1,5 +1,7 @@
 TODO
 More comparison with old versions
+Move causal messages to logs
+Revise documentations
 2.3.0
 * Add linkage plot (heatmap) in double.link
 * Add distribution plots in double.link

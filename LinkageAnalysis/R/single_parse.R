@@ -98,8 +98,8 @@ single_parse <- function(dir = ".", runs = c(), output = ".", silent = FALSE, pr
     write("", file = filenames$csv_file, append = TRUE)
   }
 
-  write(paste("LinkageAnalysis version:", packageVersion("LinkageAnalysis"), "\n"), file = filenames$csv_file,
-        append = TRUE)
+  write(paste("LinkageAnalysis version:", packageVersion("LinkageAnalysis"), "\n"),
+        file = filenames$csv_file, append = TRUE)
   write(paste("Analysis conducted at:", date(), "\n"), file = filenames$csv_file,
         append = TRUE)
 
