@@ -1,5 +1,8 @@
-todo 2.2.10
-* Finish plots in double.link
+TODO
+More comparison with old versions
+2.2.10
+* Add linkage plot (heatmap) in double.link
+* Add distribution plots in double.link
 2.2.9
 * Missing genotypes are properly handled
 * Improve manhattan plots (less cluttered)
