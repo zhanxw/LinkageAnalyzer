@@ -93,18 +93,21 @@ report <- function(type, word, log_file = NULL, eol = TRUE) {
     if (!is.null(log_file)) {
       cat(paste(word, suffix), file = log_file, append = TRUE)
     }
+    loginfo(word)
     cat(paste(word, suffix))
   } else if (type == "w") {
     # warnings
     if (!is.null(log_file)) {
       cat(paste(word, suffix), file = log_file, append = TRUE)
     }
+    logwarn(word)
     warning(word, call. = FALSE)
   } else if (type == "e") {
     # errors
     if (!is.null(log_file)){
       cat(paste(word, suffix), file = log_file, append = TRUE)
     }
+    logerror(word)
     stop(word, call. = FALSE)
   }
 }

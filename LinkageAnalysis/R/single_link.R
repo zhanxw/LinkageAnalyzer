@@ -228,6 +228,10 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
   for (i in seq_len(nrow(ret))) {
     ## calculate lethal
     stopifnot(all(vcf$sampleId == ped$iid))
+    if (i > 10 && is.debug.mode()) {
+      loginfo("DEBUG skipped ", i, "th variant ..\n")
+      next
+    }
     ## encode genotypes
     tmp <- ped
     tmp$gt <- convert_gt(vcf$GT[i,], "additive")

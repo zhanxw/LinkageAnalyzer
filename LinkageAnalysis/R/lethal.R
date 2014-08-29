@@ -267,21 +267,25 @@ double.lethal.get.pvalue <- function(data) {
   names(prob) <- names(numG3) <- names(numObs) <- mothers
 
   for (mother in mothers) {
-    # print(mother)
+    ## print(mother)
     mother_gt1 <- data$gt1[data$iid == mother]
     mother_gt2 <- data$gt2[data$iid == mother]
+    if (length(mother_gt1) == 0) {
+      logwarn("%s may not be a valid G2 mother", mother)
+      next
+    }
     n_G3 <- sum(data$mother == mother)
     # observfed HET/VAR, VAR/HET or VAR/VAR
     tmp <- data[data$mother == mother, ]
     obs <- sum((tmp$gt1 + tmp$gt2) >= 3)
     ## print("obs")
-    ## print(obs)
+    print(obs)
     if (is.na(obs)) {
       ## (TODO) better handling NAs
       next
     }
 
-   ## (TODO) change below to assertations
+    ## (TODO) change below to assertations
     ## # in case G2 genotype is unknown, if any child is VAR, the mother is definitely
     ## # HET
     ## if (any(data$gt1[data$mother == mother & !is.na(data$gt1)] == 2)) {
@@ -304,4 +308,93 @@ double.lethal.get.pvalue <- function(data) {
   pval <- calculate.prob(obs = tmp$numObs, size = tmp$numG3, p = tmp$prob)
 
   return(pval)
+}
+
+#' Examine mother-offspring pair and fix mother's genotype by her offsprings.
+#' e.g. mom has VAR offsprings, mom genotype cannot be REF => mom must be HET
+#' @param pheno ped data
+crossCheckMotherGenotype <- function(pheno, geno.name = "gt") {
+  mother <- NULL # bypass CRAN warning
+  ## count mom's offspring phenotypes
+  mom <- ddply(pheno, .(mother), function(x) {
+    c(
+        ref = sum(x[[geno.name]] == 0, na.rm = TRUE),
+        var = sum(x[[geno.name]] > 1.5, na.rm = TRUE))
+  })
+  var <- NULL # bypass CRAN warning
+  mom <- subset(mom, var > 0)
+  total.fix <- 0
+  fixed.mom.id <- vector("character", 0)
+  for (i in seq_len(nrow(mom))) {
+    mom.name <- mom[i, "mother"]
+
+    if (!mom.name %in% pheno$iid ) {
+      next
+    }
+    if (!is.na(pheno[ pheno$iid == mom.name, geno.name]) &&
+        pheno[ pheno$iid == mom.name, geno.name] != 1) {
+      pheno[ pheno$iid == mom.name, geno.name] <- 1 ## set to het
+      loginfo("Fix mother %s by her offspring %s", mom.name, pheno$iid)
+      total.fix <- total.fix + 1
+      fixed.mom.id <- c(fixed.mom.id, mom.name)
+    }
+  }
+  if (total.fix > 0) {
+    loginfo("Fixed %d mother genotypes: %s", total.fix, paste0(unique(fixed.mom.id), collapse = ","))
+  }
+  pheno
+}
+
+countForLethal <- function(pheno) {
+  nHetMom <- nVarFromHetMom <- nUnknownMom <- nVarFromUnknownMom <- 0
+  mothers <- unique(pheno[, "mother"])
+  g2 <- pheno$iid[pheno$gen == 2]
+  g2.mothers <- intersect(g2, mothers)
+  if (length(mothers) == 0) {
+    list(nVarFromHetMom, nHetMom, nVarFromUnknownMom, nUnknownMom)
+  }
+  ## loop each mother
+  for (mother in g2.mothers) {
+    if (mother == ".") { next } ## this should not happen
+    idx <- which(mother == pheno$iid)
+    if (length(idx) != 1) {
+      ## mother not in ped
+      ## nUnknownMom <- nUnknownMom + 1
+      warning("Mother not in PED or multiple moms!")
+      next
+    }
+
+    mother.gt <- pheno[idx, "gt"]
+    if (is.na(mother.gt)) {
+      offspring <- pheno[pheno$mother == mother & !is.na(pheno$gt), ]
+      if (nrow(offspring) > 0 ) {
+        nUnknownMom        <- nUnknownMom +        sum(!is.na(offspring$gt), na.rm = TRUE)
+        nVarFromUnknownMom <- nVarFromUnknownMom + sum(offspring$gt == 2, na.rm = TRUE)
+      }
+      if (is.debug.mode()) {
+        print(mother)
+        print(offspring)
+      }
+    } else if (mother.gt == 0) {
+      next
+    } else if (mother.gt == 1) {
+      offspring <- pheno[pheno$mother == mother & !is.na(pheno$gt), ]
+      if (nrow(offspring) > 0 ) {
+        nHetMom        <- nHetMom        + sum(!is.na(offspring$gt), na.rm = TRUE)
+        nVarFromHetMom <- nVarFromHetMom + sum(offspring$gt == 2, na.rm = TRUE)
+      }
+      if (is.debug.mode()) {
+        print(mother)
+        print(offspring)
+      }
+    } else if (mother.gt == 2) {
+      warning("Observe mother GT = HET :", mother)
+      next ## should not happen ...
+    } else {
+      stop("Unrecognized mother genotype!")
+    }
+    ## print(mother)
+    ## print(list(nHetMom, nVarFromHetMom, nUnknownMom, nVarFromUnknownMom))
+  }
+  list(nVarFromHetMom, nHetMom, nVarFromUnknownMom, nUnknownMom)
 }

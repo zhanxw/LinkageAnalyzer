@@ -720,6 +720,7 @@ load.vcf.ped <- function(vcfFile, pedFile, pheno.name) {
   ped <- ped[idx,]
   stopifnot(all(vcf$sampleId == ped$iid))
 
+  loginfo("%d/%d samples loaded as VCF/PED", length(vcf$sampleId), nrow(ped))
   return(list(vcf = vcf, ped = ped))
 }
 
