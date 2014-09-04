@@ -235,6 +235,9 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
 
   # set-up null model
   null.model <- create.null.model(pheno, pheno.name, test)
+  if (!isSuccess(null.model)) {
+    return(null.model)
+  }
   has.random.effect <- grepl("\\(", null.model)
   isBinary <- is.factor(pheno[,pheno.name])
 

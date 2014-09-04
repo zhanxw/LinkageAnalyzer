@@ -202,8 +202,11 @@ snapshot <- function(call.func.name, fn, force = FALSE) {
 
 isIgnorableError <- function(x) {
   ## print("x = "); print(x); print(str(x))
-  ignorable.errors <- c("dichotomize failed")
+  ignorable.errors <- c("dichotomize failed",
+                        "Response is constant - cannot fit the model",
+                        "Cannot model G2 effect as there is only one G2 mouse.")
   if (!is.null(x$message) && x$message %in% ignorable.errors) {
+    loginfo("Ignore error: %s", x$message)
     return (TRUE)
   }
   return(FALSE)
@@ -215,3 +218,4 @@ isSuccess <- function(x) {
   }
   return(TRUE)
 }
+

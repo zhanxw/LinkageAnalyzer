@@ -65,6 +65,7 @@ single_lethal <- function(genotype, genes, phenotype, G2) {
       # in case G2 genotype is unknown, if any child is VAR, the mother is definitely
       # HET
       if (any(gt[phenotype$mother == mother & !is.na(gt)] == 2)) {
+        cat("Fix mother genotype\n")
         mother_gt <- "HET"
       }
 
@@ -279,7 +280,6 @@ double.lethal.get.pvalue <- function(data) {
     tmp <- data[data$mother == mother, ]
     obs <- sum((tmp$gt1 + tmp$gt2) >= 3)
     ## print("obs")
-    print(obs)
     if (is.na(obs)) {
       ## (TODO) better handling NAs
       next

@@ -250,6 +250,9 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
 
   # set-up null model
   null.model <- create.null.model(pheno, pheno.name, test)
+  if (!isSuccess(null.model)) {
+    return(null.model)
+  }
   has.random.effect <- grepl("\\(", null.model)
   isBinary <- is.factor(pheno[,pheno.name])
 
@@ -378,10 +381,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
 
     ## draw distribution plot
     dist.plot.pdf <- fns$distrib_file
-    loginfo("%d distribution plots to be generated", length(dist.plots))
-    ## require(gridExtra)
-    tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=2, ncol=2)))
-    ggsave(dist.plot.pdf, tmp, width = 6, height = 6)
+    save.dist.plot(dist.plots, nrow = 2, ncol = 2, dist.plot.pdf)
     loginfo(paste0("Generated ", dist.plot.pdf))
   }
   write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")

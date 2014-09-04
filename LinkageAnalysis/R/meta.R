@@ -58,8 +58,7 @@ meta.single.link <- function(vcfFile, ## a vector of list
         if (ret$returncode == 0) {
           msg <- paste("Exit successfully", ret$message, sep = " ")
         } else {
-          ## deal with ignorable errors
-          if (ret$returncode == 1 && ret$message == "dichotomize failed") {
+          if (isIgnorableError(ret)) {
             # this is a special error,
             # meaning we will treat it as normal exit but no output files
             # so returncode are changed from 1 to 0
@@ -210,8 +209,14 @@ create.null.model <- function(pheno, pheno.name, test) {
 
   if (test == "wG2") {
     if (all(is.na(pheno$mother))) {
-      logerror("Does not have mother info at all (wG2 cannot work)!!\n")
-      stop("Quit...")
+      msg <- "Does not have mother info at all (wG2 cannot work)!!"
+      logerror(msg)
+      return(list(returncode = 1, message = msg))
+    }
+    if (length(unique(pheno$mother))==1) {
+      msg <- "Cannot model G2 effect as there is only one G2 mouse."
+      logerror(msg)
+      return(list(returncode = 1, message = msg))
     }
     null.model <- paste0(null.model, " + (1|mother)")
   }
@@ -252,21 +257,53 @@ fit.null.model <- function(null.model, pheno, isBinary, has.random.effect) {
     if (!isSuccess(null)) {
       null.model <- str_replace(null.model, "\\+ sex", "")
       loginfo("Refit null model using less covariates: %s\n", null.model)
-      if (has.random.effect) {
-        null <- glmer(as.formula(null.model), data = pheno, family = "binomial")
-      } else {
-        null <- glm(as.formula(null.model), data = pheno, family = "binomial")
-      }
+      null <- tryCatch(
+          {
+            if (has.random.effect) {
+              null <- glmer(as.formula(null.model), data = pheno, family = "binomial")
+            } else {
+              null <- glm(as.formula(null.model), data = pheno, family = "binomial")
+            }
+            null
+          },
+          error = function(err) {
+            print(str(err))
+            print(err)
+            msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+            return(list(returncode = 1, message = msg, error = err))
+          })
     }
   } else { ## qtl
     loginfo("Phenotypes are treated as continuous\n")
-    if (has.random.effect) {
-      null <- lmer(as.formula(null.model), data = pheno, REML = FALSE)
-    } else {
-      null <- lm(as.formula(null.model), data = pheno)
-    }
+    null <- tryCatch(
+        {
+          if (has.random.effect) {
+            null <- lmer(as.formula(null.model), data = pheno, REML = FALSE)
+          } else {
+            null <- lm(as.formula(null.model), data = pheno)
+          }
+          null
+        },
+        error = function(err) {
+          print(str(err))
+          print(err)
+          msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+          return(list(returncode = 1, message = msg, error = err))
+        })
   }
   null
+}
+
+save.dist.plot <- function(dist.plots, nrow, ncol, fn) {
+  nplots <- length(dist.plots)
+  loginfo("%d distribution plots to be generated", nplots)
+  if (nplots == 0) {
+    df <- data.frame()
+    dist.plots[[1]] <- ggplot(df) + geom_point() + xlim(0, 3) + ylim(0, 100) + ggtitle("No data to plot")
+  }
+  ## require(gridExtra)
+  tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=nrow, ncol=ncol)))
+  ggsave(filename = fn, tmp, width = 8, height = 16)
 }
 
 meta.single.link.impl <- function(vcfFile, ## a vector of list
@@ -368,6 +405,9 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
 
   # set-up null model
   null.model <- create.null.model(pheno, pheno.name, test)
+  if (!isSuccess(null.model)) {
+    return(null.model)
+  }
   has.random.effect <- grepl("\\(", null.model)
   isBinary <- is.factor(pheno[,pheno.name])
 
@@ -496,10 +536,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
 
     ## draw distribution plot
     dist.plot.pdf <- fns$distrib_file
-    loginfo("%d distribution plots to be generated", length(dist.plots))
-    ## require(gridExtra)
-    tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=2, ncol=1)))
-    ggsave(dist.plot.pdf, tmp, width = 8, height = 16)
+    save.dist.plot(dist.plots, nrow = 2, ncol = 1, fn = dist.plot.pdf)
     loginfo(paste0("Generated ", dist.plot.pdf))
   }
   write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
