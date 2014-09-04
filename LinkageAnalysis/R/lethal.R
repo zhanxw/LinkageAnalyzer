@@ -120,6 +120,7 @@ double_sample <- function(mother_gt1, mother_gt2, n_G3) {
     mother_gt2 <- "unknown"
   }
 
+  prob <- -1
   if (mother_gt1 == "REF" && mother_gt2 == "REF") {
     # cannot give the genotype we desired for sure
     ##return(rep(0, n_trial))
@@ -145,6 +146,11 @@ double_sample <- function(mother_gt1, mother_gt2, n_G3) {
   }
 
   ## return(rbinom(n = n_trial, size = n_G3, prob = prob))
+  if (prob < 0) {
+    snapshot("double_sample", "dbg.double_sample.Rdata", force = TRUE)
+    logwarn("double_sample() encountered a strange case")
+    return(0)
+  }
   return(prob)
 }
 
@@ -252,10 +258,18 @@ double_lethal <- function(data, input, i, j) {
   return(pval)
 }
 
-## use
+## calculate lehtal probability for double linkage
 double.lethal.get.pvalue <- function(data) {
-  mothers <- as.vector(unique(data$mother[data$gen == 3]))
+  mothers <- unique(data$mother)
   mothers <- mothers[mothers != "."]
+  g2 <- data$iid[data$gen == 2]
+  g2.mothers <- intersect(g2, mothers)
+  if (length(g2.mothers) == 0) {
+    logwarn("Cannot find any valid G2 mothers, skipped lethal calculation")
+    return(0)
+  }
+
+  ## Sex chromsome not supported, and should be handled outside of this function
   ## if (any(input$genes[c(i, j), "chr"] == "X")) {
   ##   return(1)
   ## }  # don't handle gene on chrX for the moment
@@ -267,7 +281,7 @@ double.lethal.get.pvalue <- function(data) {
   numObs <- rep(0, length(mothers))
   names(prob) <- names(numG3) <- names(numObs) <- mothers
 
-  for (mother in mothers) {
+  for (mother in g2.mothers) {
     ## print(mother)
     mother_gt1 <- data$gt1[data$iid == mother]
     mother_gt2 <- data$gt2[data$iid == mother]
@@ -279,22 +293,31 @@ double.lethal.get.pvalue <- function(data) {
     # observfed HET/VAR, VAR/HET or VAR/VAR
     tmp <- data[data$mother == mother, ]
     obs <- sum((tmp$gt1 + tmp$gt2) >= 3)
-    ## print("obs")
+    ## print(obs)
     if (is.na(obs)) {
-      ## (TODO) better handling NAs
+      logwarn("No offsprings found from mother %s", mother)
       next
     }
 
-    ## (TODO) change below to assertations
-    ## # in case G2 genotype is unknown, if any child is VAR, the mother is definitely
-    ## # HET
-    ## if (any(data$gt1[data$mother == mother & !is.na(data$gt1)] == 2)) {
-    ##   mother_gt1 <- "HET"
-    ## }
-    ## if (any(data$gt2[data$mother == mother & !is.na(data$gt2)] == 2)) {
-    ##   mother_gt2 <- "HET"
-    ## }
-
+    # the maternal-offspring genotypes should have been fixed, but add sanity check codes anyway
+    # in case G2 genotype is unknown, if any child is VAR, the mother is definitely HET
+    if (any(data$gt1[data$mother == mother & !is.na(data$gt1)] == 2)) {
+      ## mother_gt1 <- "HET"
+      if (is.na(mother_gt1) || (mother_gt1 < 0.5) || (mother_gt1 > 1.5)) {
+        logwarn("mother genotype is not HET for %s", mother)
+      }
+    }
+    if (any(data$gt2[data$mother == mother & !is.na(data$gt2)] == 2)) {
+      ## mother_gt2 <- "HET"
+      if (is.na(mother_gt2) || (mother_gt2 < 0.5) || (mother_gt2 > 1.5)) {
+        logwarn("mother genotype is not HET for %s", mother)
+      }
+    }
+    ## print(mother_gt1)
+    ## print(mother_gt2)
+    ## print(n_G3)
+    ## print(prob[mother])
+    ## print(double_sample(mother_gt1, mother_gt2, n_G3))
     prob[mother]  <- double_sample(mother_gt1, mother_gt2, n_G3)
     numG3[mother] <- n_G3
     numObs[mother] <- obs
@@ -350,7 +373,7 @@ countForLethal <- function(pheno) {
   mothers <- unique(pheno[, "mother"])
   g2 <- pheno$iid[pheno$gen == 2]
   g2.mothers <- intersect(g2, mothers)
-  if (length(mothers) == 0) {
+  if (length(g2.mothers) == 0) {
     list(nVarFromHetMom, nHetMom, nVarFromUnknownMom, nUnknownMom)
   }
   ## loop each mother

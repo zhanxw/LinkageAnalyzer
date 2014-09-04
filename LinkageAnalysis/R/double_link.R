@@ -424,7 +424,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
         c <- c[order(c)]
         c
       }
-      print(dim(data))
+      loginfo("Draw %d by %d heatmap for %s model", dim(data)[1], dim(data)[2], type)
       heatmap.2(data, dendrogram = "none", trace = "none",
                 Rowv = F, Colv = F, cexRow = 0.7, cexCol = 0.7,
                 main = paste("Heatmap of P values\n (", type, test, ")", sep = " "),

@@ -2,6 +2,8 @@ TODO
 More comparison with old versions
 Move causal messages to logs
 Revise documentations
+2.3.3
+* Fix issue 180
 2.3.2
 * Fix most issues in 180
 * Fix issue 181
