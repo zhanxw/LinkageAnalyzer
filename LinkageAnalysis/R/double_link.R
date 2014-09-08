@@ -424,14 +424,18 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
         c <- c[order(c)]
         c
       }
-      loginfo("Draw %d by %d heatmap for %s model", dim(data)[1], dim(data)[2], type)
-      heatmap.2(data, dendrogram = "none", trace = "none",
-                Rowv = F, Colv = F, cexRow = 0.7, cexCol = 0.7,
-                main = paste("Heatmap of P values\n (", type, test, ")", sep = " "),
-                lmat = rbind(c(2, 3, 4), c(0, 1, 1)),
-                lhei = c(1, 5), lwid = c(0.5, 3, 1), keysize = 0.5,
-                density.info = "none",
-                breaks = calc.breaks(data))
+      if (all(data == 0) || length(unique(as.vector(data))) == 1) {
+        loginfo("Skip draw %d by %d heatmap for %s model as the p-values are constant.", dim(data)[1], dim(data)[2], type)
+      } else {
+        loginfo("Draw %d by %d heatmap for %s model", dim(data)[1], dim(data)[2], type)
+        heatmap.2(data, dendrogram = "none", trace = "none",
+                  Rowv = F, Colv = F, cexRow = 0.7, cexCol = 0.7,
+                  main = paste("Heatmap of P values\n (", type, test, ")", sep = " "),
+                  lmat = rbind(c(2, 3, 4), c(0, 1, 1)),
+                  lhei = c(1, 5), lwid = c(0.5, 3, 1), keysize = 0.5,
+                  density.info = "none",
+                  breaks = calc.breaks(data))
+      }
     }
     dev.off()
     loginfo(paste0("Generated ", fns$linkage_file))
