@@ -3,7 +3,7 @@
 \alias{single_link}
 \title{Statistical analysis for correlation with phenotype and lethality on a single locus}
 \usage{
-single_link(main_file = "", G2_file = "", output = ".", test = "wG2",
+single_link(vcfFile, pedFile, pheno.name, output = ".", test = "wG2",
   detect = "never", silent = T, tail = "decreasing", prefix = "",
   plot.it = TRUE, transform.pheno = NULL)
 }

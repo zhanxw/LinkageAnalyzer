@@ -3,7 +3,7 @@
 \alias{double_link}
 \title{Statistical analysis for testing the combinatory effect of two mutations}
 \usage{
-double_link(main_file, G2_file = "", output = ".", test = "woG2",
+double_link(vcfFile, pedFile, pheno.name, output = ".", test = "woG2",
   detect = "never", silent = TRUE, tail = "decreasing", prefix = "",
   cutoff_single = 0.01, plot.it = TRUE, transform.pheno = NULL)
 }
