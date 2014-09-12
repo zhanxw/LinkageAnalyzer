@@ -157,6 +157,7 @@ source.all.file <- function(dir = ".") {
    library(stringr)
    library(plyr)
    library(ggplot2)
+   library(gplots)
    library(lme4)
  }
 }
@@ -204,7 +205,9 @@ isIgnorableError <- function(x) {
   ## print("x = "); print(x); print(str(x))
   ignorable.errors <- c("dichotomize failed",
                         "Response is constant - cannot fit the model",
-                        "Cannot model G2 effect as there is only one G2 mouse.")
+                        "Cannot model G2 effect as there is only one G2 mouse.",
+                        "Sample size is smaller than free model parameters",
+                        "Does not have mother info at all (wG2 cannot work)!!")
   if (!is.null(x$message) && x$message %in% ignorable.errors) {
     loginfo("Ignore error: %s", x$message)
     return (TRUE)

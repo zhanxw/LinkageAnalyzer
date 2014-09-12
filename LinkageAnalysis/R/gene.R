@@ -138,6 +138,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
       loginfo("DEBUG skipped ", i, "th variant ..\n")
       next
     }
+    loginfo("Access gene lethality for %s", gene[i])
     ## encode genotypes
     tmp <- ped
     tmp$gt <- convert_gt(vcf$GT[i,], "additive")

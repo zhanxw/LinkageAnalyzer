@@ -211,6 +211,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
       if (any(!grepl(pattern = "(chr)?[0-9]+", vcf$CHROM[c(i,j)]))) {
         next
       }
+      loginfo("Access gene lethality for %s x %s", gene[i], gene[j])
       ## encode genotypes
       tmp <- ped
       tmp$gt1 <- convert_gt(vcf$GT[i,], "additive")
@@ -246,6 +247,13 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
     loginfo("Finished fitting null model\n")
   } else {
     logerror("Fitting null model failed!")
+    loginfo("Outputting p value matrix anyway: %s",
+            sub(patter = "full", replacement = "\\*", fns$csv_file))
+    for (type in c("recessive", "additive", "dominant", "inhibitory", "lethal")) {
+      write.csv(ret[[type]], file = sub(pattern = "full", replacement = paste(type),
+                                 fns$csv_file), quote = FALSE)
+    }
+
     return(null)
   }
 

@@ -333,9 +333,19 @@ dichotomize <- function(x, log_file = NULL) {
 
   orig.len <- length(x)
   na.idx <- is.na(x)
-  x <- x[!na.idx]
+  x <- x[!na.idx] ## keep non-missing values for now
 
   report("m", "Detecting clustering of mice", log_file)
+  numPhenoValues <- length(unique(x))
+  if ( numPhenoValues < 3) {
+    msg <- sprintf("Dichotomizing phentoypes failed (number of unique phenotype values = %d )", numPhenoValues)
+    report("m", msg, log_file)
+    ret$group <- 1
+    ret$succ  <- FALSE
+    return(ret)
+  }
+
+
   ## require(mclust)
   mclust1 <- Mclust(x, G = 1, modelNames = "E")
   mclust2 <- Mclust(x, G = 2, modelNames = "E")
@@ -381,7 +391,8 @@ dichotomize <- function(x, log_file = NULL) {
     ret$succ  <- FALSE
   }
 
-  if (mclust3$bic > mclust1$bic && mclust3$bic > mclust2$bic) {
+  if (!is.na(mclust3$bic) && !is.na(mclust2$bic) && !is.na(mclust1$bic) &&
+      mclust3$bic > mclust1$bic && mclust3$bic > mclust2$bic) {
     report("m", "There may exist 3 clusters of phenotype scores!", log_file)
     ret$group <- 3
     ret$succ  <- FALSE
@@ -763,26 +774,31 @@ prepare.model.data <- function(vcf, ped, pheno.name) {
   pheno <- pheno[pheno$iid %in% colnames(vcf$GT), ]
 
   # prepare genotype data
-  geno <- vcf$GT[, pheno$iid]  # G3 genotypes
+  geno <- vcf$GT[, pheno$iid, drop = FALSE]  # G3 genotypes
   stopifnot(all(colnames(geno) == pheno$iid))
+
+  if (ncol(geno) == 0) {
+    logwarn("No G3 mice to analyze")
+  } else if (ncol(geno) == 1) {
+    logwarn("Only one G3 mouse left to analyze")
+  }
 
   # check missing rate
   missing <- rowMeans(is.na(geno))
   idx <- missing > 0.5
-  msg <- sprintf("%d variants have >0.5 missing rate", sum(idx))
+  msg <- sprintf("%d variants have >0.5 missing rate", sum(idx, na.rm = TRUE))
   logwarn(msg)
   missing <- colMeans(is.na(geno))
   idx <- missing > 0.5
-  msg <- sprintf("%d samples have >0.5 missing rate", sum(idx))
+  msg <- sprintf("%d samples have >0.5 missing rate", sum(idx, na.rm = TRUE))
   logwarn(msg)
 
   # report # of mice for models
-  msg <- sprintf("%d mice will be analyzed in models", nrow(vcf$GT))
+  msg <- sprintf("%d mice and %d variants will be analyzed in models", ncol(geno), nrow(geno))
   loginfo(msg)
 
   list(pheno = pheno, geno = geno)
 }
-
 # if @param is "auto" then dichotomize phenotype,
 # otherwise verify the phenotype is QTL
 process.phenotype <- function(ped, pheno.name, detect) {

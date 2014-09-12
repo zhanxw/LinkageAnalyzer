@@ -232,6 +232,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
       loginfo("DEBUG skipped ", i, "th variant ..\n")
       next
     }
+    loginfo("Access gene lethality for %s", gene[i])
     ## encode genotypes
     tmp <- ped
     tmp$gt <- convert_gt(vcf$GT[i,], "additive")
@@ -262,6 +263,8 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
     loginfo("Finished fitting null model\n")
   } else {
     logerror("Fitting null model failed!")
+    write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
+    loginfo(paste0("Generated %s anyway", fns$csv_file))
     return(null)
   }
 
@@ -275,7 +278,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
       cat("DEBUG skipped ", i, "th variant ..\n")
       next
     }
-    loginfo("Process %d  out of %d variant: %s", i, nVariant, gene[i])
+    loginfo("Process %d out of %d variant: %s", i, nVariant, gene[i])
 
     # record data
     pheno$gt <- convert_gt(geno[i,], "additive")

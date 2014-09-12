@@ -2,6 +2,10 @@ TODO
 More comparison with old versions
 Move causal messages to logs
 Revise documentations
+Add sex specific analysis
+Add teeny and snrnp40 as examples
+2.3.6
+* Fix issue 184
 2.3.5
 * Add gene based super pedigree analysis
 2.3.4

@@ -232,11 +232,35 @@ isResponseContant <- function(model, pheno) {
   return(FALSE)
 }
 
+countModelParam <- function(model, pheno, isBinary, has.random.effect) {
+  if (has.random.effect) {
+    nobars(model)
+    num.fixed.eff <- ncol(model.matrix(nobars(as.formula(model)), data = pheno))
+    num.random.eff <- do.call(sum, lapply(findbars(as.formula(model)),
+                             function(x) {
+                               eff <- (sub("1 \\| ", "", deparse(x)))
+                               length(unique(pheno[, eff]))
+                             }))
+    return(num.fixed.eff + num.random.eff)
+  }
+
+  num.fixed.eff <- ncol(model.matrix(as.formula(model), data = pheno))
+  return(num.fixed.eff)
+}
+
 fit.null.model <- function(null.model, pheno, isBinary, has.random.effect) {
   loginfo("Fit null model: %s", null.model)
   snapshot("fit.null.model", "fit.null.model.Rdata")
   if (isResponseContant(null.model, pheno)) {
     return(list(returncode = 1, message = "Response is constant - cannot fit the model"))
+  }
+  if (grepl("mother", null.model) && length(unique(pheno$mother)) == 1)  {
+    return(list(returncode = 1, message = "Cannot access mother effect when input only contains one mother mouse"))
+  }
+  nSample <- nrow(pheno)
+  nParam <- countModelParam(null.model, pheno, isBinary, has.random.effect)
+  if (nSample <= nParam) {
+    return(list(returncode = 1, message = "Sample size is smaller than free model parameters"))
   }
   if (isBinary) {
     loginfo("Phenotypes are treated as binary\n")
@@ -387,6 +411,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       loginfo("DEBUG skipped ", i, "th variant ..\n")
       next
     }
+    loginfo("Access gene lethality for %s", gene[i])
     ## encode genotypes
     tmp <- ped
     tmp$gt <- convert_gt(vcf$GT[i,], "additive")
@@ -417,6 +442,8 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
     loginfo("Finished fitting null model\n")
   } else {
     logerror("Fitting null model failed!")
+    write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
+    loginfo(paste0("Generated %s anyway", fns$csv_file))
     return(null)
   }
 
@@ -430,7 +457,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       cat("DEBUG skipped ", i, "th variant ..\n")
       next
     }
-    loginfo("Process %d  out of %d variant: %s", i, nVariant, gene[i])
+    loginfo("Process %d out of %d variant: %s", i, nVariant, gene[i])
 
     # record data
     pheno$gt <- convert_gt(geno[i,], "additive")
