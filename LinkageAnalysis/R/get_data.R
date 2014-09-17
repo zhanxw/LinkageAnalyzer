@@ -329,7 +329,7 @@ get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
 #' @return list(), group -> suggested group number
 dichotomize <- function(x, log_file = NULL) {
   snapshot("dichotomize", "dichotomize.Rdata")
-  ret <- list(succ = FALSE, group = NA, break_point = NA, new.value = NULL, old.value = x)
+  ret <- list(returncode = 1, group = NA, break_point = NA, new.value = NULL, old.value = x)
 
   orig.len <- length(x)
   na.idx <- is.na(x)
@@ -341,16 +341,36 @@ dichotomize <- function(x, log_file = NULL) {
     msg <- sprintf("Dichotomizing phentoypes failed (number of unique phenotype values = %d )", numPhenoValues)
     report("m", msg, log_file)
     ret$group <- 1
-    ret$succ  <- FALSE
+    ret$returncode <- 1
     return(ret)
   }
 
 
   ## require(mclust)
-  mclust1 <- Mclust(x, G = 1, modelNames = "E")
-  mclust2 <- Mclust(x, G = 2, modelNames = "E")
-  mclust3 <- Mclust(x, G = 3, modelNames = "E")
-
+  mclust1 <- tryCatch({Mclust(x, G = 1, modelNames = "E")},
+                      error = function(err) {
+                        msg <- sprintf("Dichotomizing phentoypes failed (failed when try: cluster = 1)")
+                        ret$group <- 1
+                        ret$returncode <- 1
+                        return(ret);
+                      })
+  if (!isSuccess(mclust1)) {return (mclust1)}
+  mclust2 <- tryCatch({Mclust(x, G = 2, modelNames = "E")},
+                      error = function(err) {
+                        msg <- sprintf("Dichotomizing phentoypes failed (failed when try: cluster = 2)")
+                        ret$group <- 1
+                        ret$returncode <- 1
+                        return(ret);
+                      })
+  if (!isSuccess(mclust2)) {return (mclust2)}
+  mclust3 <- tryCatch({Mclust(x, G = 3, modelNames = "E")},
+                      error = function(err) {
+                        msg <- sprintf("Dichotomizing phentoypes failed (failed when try: cluster = 3)")
+                        ret$group <- 1
+                        ret$returncode <- 1
+                        return(ret);
+                      })
+if (!isSuccess(mclust3)) {return (mclust3)}
 
   if (mclust2$bic > mclust1$bic) {
     break_index <- sum(mclust2$classification == 1)  # find break point
@@ -377,10 +397,10 @@ dichotomize <- function(x, log_file = NULL) {
       msg <- sprintf("Dichotomizing phentoypes failed (affected ratio = %f)", ratio)
       report("m", msg, log_file)
       ret$group <- 1
-      ret$succ  <- FALSE
+      ret$returncode <- 1
     } else {
       ret$group <- 2
-      ret$succ  <- TRUE
+      ret$returncode <- 0
     }
   } else {
     msg <- sprintf("Dichotomizing phentoypes failed (one cluster is preferred to two clusters)\n")
@@ -388,14 +408,14 @@ dichotomize <- function(x, log_file = NULL) {
     msg <- sprintf("Data = %s", paste(ret$old.value, collapse = ","))
     report("m", msg, log_file)
     ret$group <- 1
-    ret$succ  <- FALSE
+    ret$returncode <- 1
   }
 
   if (!is.na(mclust3$bic) && !is.na(mclust2$bic) && !is.na(mclust1$bic) &&
       mclust3$bic > mclust1$bic && mclust3$bic > mclust2$bic) {
     report("m", "There may exist 3 clusters of phenotype scores!", log_file)
     ret$group <- 3
-    ret$succ  <- FALSE
+    ret$returncode <- 1
   }
   ## fill in missing values
   nMissing <- length(ret$old.value) - length(ret$new.value)
@@ -461,7 +481,7 @@ get.ped <- function(pedFile, pheno = NULL, detect = NULL) {
     # do nothing
   } else if (detect == "auto"){
     tmp <- dichotomize(ped$pheno)
-    if (tmp$succ) {
+    if (isSuccess(tmp)) {
       ped$pheno <- tmp$new.value
     } else {
       if (tmp$group == 1) {
@@ -639,7 +659,7 @@ vcf.delete.sample.by.index <- function(vcf, index) {
   for (i in 1:n) {
     if (is.matrix(vcf[[i]])) {
       if (ncol(vcf[[i]]) == length(index)) {
-        vcf[[i]] <- vcf[[i]][,!index]
+        vcf[[i]] <- vcf[[i]][,!index, drop = FALSE]
       }
     } else if (is.vector(vcf[[i]])) {
       next
@@ -705,7 +725,7 @@ load.vcf.ped <- function(vcfFile, pedFile, pheno.name) {
   if (length(vcf$CHROM) < 1) {
     msg <- "VCF is empty"
     logerror(msg)
-    return(returncode = 1, message = msg)
+    return(list(returncode = 1, message = msg))
   }
 
   loginfo("Load PED file: %s", pedFile)
@@ -714,7 +734,11 @@ load.vcf.ped <- function(vcfFile, pedFile, pheno.name) {
 
   ## verify phenotype name
   stopifnot(pheno.name %in% colnames(ped)[-(1:5)] )
-  stopifnot(!all(is.na(ped[,pheno.name])))
+  if (all(is.na(ped[,pheno.name]))) {
+    msg <- "No valid phenotypes"
+    logerror(msg)
+    return(list(returncode = 1, message = msg))
+  }
 
   ## clean up samples in VCF and PED
   idx <- ! vcf$sampleId %in% ped[,2]
@@ -804,7 +828,7 @@ prepare.model.data <- function(vcf, ped, pheno.name) {
 process.phenotype <- function(ped, pheno.name, detect) {
   if (detect == "auto") {
     tmp <- dichotomize(ped[,pheno.name])
-    if (tmp$succ) {
+    if (isSuccess(tmp)) {
       ped[,pheno.name] <- tmp$new.value
     } else {
       logerror("ERROR: Dichotomize failed")

@@ -45,6 +45,11 @@ get_genetics <- function(genes, phenotype, genotype, bin, unconverted) {
 }
 
 calc.genetic <- function(ret, geno, pheno, pheno.name, isBinary) {
+  if (ncol(geno) == 0) {
+    ret$REF <- ret$HET <- ret$VAR <- rep(0, nrow(geno))
+    return(ret)
+  }
+
   ret$REF <- rowSums(geno == 0, na.rm = TRUE)
   ret$HET <- rowSums(geno == 1, na.rm = TRUE)
   ret$VAR <- rowSums(geno == 2, na.rm = TRUE)
