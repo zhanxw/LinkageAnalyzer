@@ -428,6 +428,10 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   geno <- pheno.geno$geno
   nVariant <- nrow(geno)
 
+  snapshot("calc.genetic", "calc.genetic.Rdata")
+  ret <- calc.genetic(ret, geno, pheno, pheno.name, isBinary)
+  head(ret)
+
   # set-up null model
   null.model <- create.null.model(pheno, pheno.name, test)
   if (!isSuccess(null.model)) {
@@ -544,10 +548,6 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
       dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, pheno.name, dist.title)
     }
   }
-
-  snapshot("calc.genetic", "calc.genetic.Rdata")
-  ret <- calc.genetic(ret, geno, pheno, pheno.name, isBinary)
-  head(ret)
 
   if (plot.it) {
     snapshot("plot.it", "plot.it.Rdata", force = TRUE)

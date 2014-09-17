@@ -128,6 +128,20 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
                     NMISS = nas, lethalCount = nas)
   rownames(ret) <- NULL
 
+  retGene <- ddply(ret, .(Gene), function(x) {
+    data.frame(
+        chr = unique(x$chr)[1],
+        POS = min(as.integer(x$pos)),
+        REF = NA,
+        HET = NA,
+        VAR = NA,
+        lethal = NA,
+        additive = NA,
+        recessive = NA,
+        dominant = NA,
+        numVariant = nrow(x),
+        variant = paste(x$pos, sep = ",")) })
+
   ## calculate lethal
   type <- "lethal"
   loginfo("Perform %s test.", type)
@@ -154,6 +168,10 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
   pheno <- pheno.geno$pheno
   geno <- pheno.geno$geno
   nVariant <- nrow(geno)
+
+  snapshot("calc.genetic", "calc.genetic.Rdata")
+  ret <- calc.genetic(ret, geno, pheno, pheno.name, isBinary)
+  head(ret)
 
   # set-up null model
   null.model <- create.null.model(pheno, pheno.name, test)
@@ -270,10 +288,6 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
     }
   }
 
-  snapshot("calc.genetic", "calc.genetic.Rdata")
-  ret <- calc.genetic(ret, geno, pheno, pheno.name, isBinary)
-  head(ret)
-
   if (plot.it) {
     snapshot("plot.it", "plot.it.Rdata", force = TRUE)
     ## draw linkage plot
@@ -291,8 +305,9 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
     save.dist.plot(dist.plots, nrow = 2, ncol = 1, fn = dist.plot.pdf)
     loginfo(paste0("Generated ", dist.plot.pdf))
   }
+
   ## collapsing result
-  loginfo("Summarize gene-level genotic mutation")
+  loginfo("Summarize gene-level genetic mutation")
   fam <- unique(pheno$fid)
   nFam <- length(fam)
   genoCount <- matrix(NA, nrow = length(gene), ncol = nFam * 4)
@@ -310,6 +325,8 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
       genoCount[i, j*4  ] <- sum(g == 2, na.rm = TRUE)
     }
   }
+  genoCount <- cbind(data.frame(gene = gene), data.frame(genoCount))
+  rownames(genoCount) <- NULL
   write.table(genoCount, file = paste0(fns$csv_file, ".preCollapseGeno"), quote = F, row.names = F, sep = ",")
   loginfo("Collapsing statistics")
   write.table(ret, file = paste0(fns$csv_file, ".preCollapseResult"), quote = F, row.names = F, sep = ",")
@@ -325,10 +342,11 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
     ret$dominant <- min(x$dominant, na.rm = TRUE)
     ret
   })
-  write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
+  write.table(ret, file = paste0(fns$csv_file, ".minP"), quote = F, row.names = F, sep = ",")
   loginfo(paste0("Generated ", fns$csv_file))
   wd <- getwd()
   save(list = ls(), file = fns$results_file)
+
 
   end.time <- Sys.time()
   diff.time <- difftime(end.time, start.time, units = "secs")
@@ -344,4 +362,108 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
   loginfo(msg)
   loginfo("Exit successfully")
   return(list(returncode = 0, message = "", result = ret))
+}
+
+
+runSingleVariant <- function(pheno, pheno.name, isBinary,
+                             geno, gene,
+                             null.model, has.random.effect, tail, \
+                             ret) {
+  nVariant <- nrow(geno)
+  dist.data <- list()
+  dist.plots <- list()
+  for (i in 1:nVariant) {
+    if (i > 10 && is.debug.mode()) {
+      cat("DEBUG skipped ", i, "th variant ..\n")
+      next
+    }
+    loginfo("Process %d  out of %d variant: %s", i, nVariant, gene[i])
+
+    # record data
+    pheno$gt <- convert_gt(geno[i,], "additive")
+    dist.data[[length(dist.data) + 1]] <- pheno
+
+    ## skip mono site
+    if (length(unique(pheno$gt)) == 1) {
+      loginfo("Skip monomorphic site")
+      next
+    }
+
+    # store null model
+    null.orig <- null
+    pheno.orig <- pheno
+
+    # handle missing
+    ret[i, "NMISS"] <- NMISS <- sum(is.na(pheno$gt))
+    if (NMISS > 0 ) {
+      loginfo("Refit null model due to %d missing genotypes", sum(is.na(pheno$gt)))
+      pheno <- pheno[!is.na(pheno$gt), ]
+      null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
+      if (!isSuccess(null)) {
+        logwarn("Null model fit failed.")
+        null <- null.orig
+        pheno <- pheno.orig
+        next
+      }
+    }
+
+    # calcualte each model
+    raw.gt <- pheno$gt
+    for (type in c("additive", "recessive", "dominant")) {
+      loginfo("Perform %s test on %d samples", type, nrow(pheno))
+
+      ## encode genotypes
+      pheno$gt <- convert_gt(raw.gt, type)
+      stopifnot(all(!is.na(pheno$gt)))
+
+      ## skip this site when the genotypes are monomorphic
+      if (length(unique(pheno$gt)[!is.na(unique(pheno$gt))]) <= 1) {
+        loginfo("Skip monomorphic site under %s model", type)
+        ret[i, type] <- pval <- 1
+        next
+      }
+
+      ## fit alternative model
+      alt.model <- paste0(null.model, " + gt")
+      if (has.random.effect) {
+        alt <- run.mixed.effect.alt.model(isBinary, alt.model, pheno)
+      } else {
+        alt <- list(returncode = 1, message = "no random effect")
+      }
+
+      ## check convergence
+      alt <- check.mixed.effect.alt.model.converge(alt)
+
+      ## calculate p-value
+      if (isSuccess(alt)) {
+        ## no error occurred, using tradition anova tests
+        pval <- anova(null, alt)$"Pr(>Chisq)"[2]
+        if (is.na(pval)) {
+          pval <- 1
+        }
+        direction <- fixef(alt)["gt"] > 0  # TRUE means protective effect, FALSE means harmful effect (desired)
+        if (!is.na(direction)) {
+          pval <- convert_tail(direction, pval, tail)
+        }
+      } else {
+        loginfo("Refit alternative model using reduced data and Wald test\n")
+        pval <- run.fixed.effect.alt.model(isBinary, alt.model, pheno, pheno.name, tail)
+      }
+      ret[i, type] <- pval
+    }
+    ret[i, "TDT"] <- NA     ## TODO: implement this
+
+    ## restore null model
+    null <- null.orig
+    pheno <- pheno.orig
+
+    # record graph
+    if (any(ret[i, c("additive", "recessive", "dominant")] < 0.05, na.rm = TRUE)) {
+      pheno$gt <- convert_gt(geno[i,], "additive")
+      dist.title <- sprintf("%s (%s:%s)", gene[i], as.character(ret$chr[i]), as.character(ret$pos[i]))
+      dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, pheno.name, dist.title)
+    }
+  }
+  return ()
+
 }
