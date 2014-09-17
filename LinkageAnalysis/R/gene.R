@@ -367,7 +367,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
 
 runSingleVariant <- function(pheno, pheno.name, isBinary,
                              geno, gene,
-                             null.model, has.random.effect, tail, \
+                             null.model, has.random.effect, tail,
                              ret) {
   nVariant <- nrow(geno)
   dist.data <- list()
