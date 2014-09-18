@@ -428,10 +428,6 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   geno <- pheno.geno$geno
   nVariant <- nrow(geno)
 
-  snapshot("calc.genetic", "calc.genetic.Rdata")
-  ret <- calc.genetic(ret, geno, pheno, pheno.name, isBinary)
-  head(ret)
-
   # set-up null model
   null.model <- create.null.model(pheno, pheno.name, test)
   if (!isSuccess(null.model)) {
@@ -440,6 +436,10 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   has.random.effect <- grepl("\\(", null.model)
   isBinary <- is.factor(pheno[,pheno.name])
 
+  snapshot("calc.genetic", "calc.genetic.Rdata")
+  ret <- calc.genetic(ret, geno, pheno, pheno.name, isBinary)
+  head(ret)
+
   # fit null model
   null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
   if (isSuccess(null)) {
@@ -447,7 +447,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   } else {
     logerror("Fitting null model failed!")
     write.table(ret, file = fns$csv_file, quote = F, row.names = F, sep = ",")
-    loginfo(paste0("Generated %s anyway", fns$csv_file))
+    loginfo("Generated %s anyway", fns$csv_file)
     return(null)
   }
 
