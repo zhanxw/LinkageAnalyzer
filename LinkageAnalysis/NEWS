@@ -4,8 +4,10 @@ Move causal messages to logs
 Revise documentations
 Add sex specific analysis
 Add teeny and snrnp40 as examples
+Maybe TODO
 * Add G3 counts: REF.G3, HET.G3, VAR.G3
-* Change collapsing stratgy for gene based analysis
+2.3.9
+* Add collapsing stratgy for gene based analysis
 2.3.8
 * Fix issue 188
 2.3.7

@@ -222,3 +222,7 @@ isSuccess <- function(x) {
   return(TRUE)
 }
 
+changeSuffix <- function(fn, old.suffix, new.suffix) {
+  pattern <- paste0(old.suffix, "$")
+  sub(pattern = pattern, replacement = new.suffix, x = fn)
+}
