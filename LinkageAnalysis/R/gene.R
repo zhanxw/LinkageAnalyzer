@@ -345,7 +345,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
         REF = NA,
         HET = NA,
         VAR = NA,
-        lethal <- min(x$lethal, na.rm = TRUE), ## using minimal pval for lethal
+        lethal = min(x$lethal, na.rm = TRUE), ## using minimal pval for lethal
         additive = NA,
         recessive = NA,
         dominant = NA,
