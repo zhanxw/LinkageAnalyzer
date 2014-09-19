@@ -295,8 +295,10 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
 
   ## Perform minimal p-value based approach
   loginfo("Summarize gene-level genetic mutation")
+  snapshot("summarize.minP", "summarize.minP.Rdata")
   fam <- unique(pheno$fid)
   nFam <- length(fam)
+  uniqGene <- unique(gene)
   genoCount <- matrix(NA, nrow = length(gene), ncol = nFam * 4)
   colName <- rep(fam, rep(4, nFam))
   colName <- paste(colName, rep(c("NA", 0, 1, 2), nFam), sep = "-")
@@ -314,24 +316,25 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
   }
   genoCount <- cbind(data.frame(gene = gene), data.frame(genoCount))
   rownames(genoCount) <- NULL
-  write.table(genoCount, file = paste0(fns$csv_file, ".preCollapseGeno"), quote = F, row.names = F, sep = ",")
+  write.table(genoCount, file = changeSuffix(fns$csv_file, ".csv", ".preCollapseGeno.tbl"), quote = F, row.names = F)
   loginfo("Collapsing statistics")
-  write.table(ret, file = paste0(fns$csv_file, ".preCollapseResult"), quote = F, row.names = F, sep = ",")
+  write.table(ret, file = changeSuffix(fns$csv_file, ".csv", ".variant.tbl"), quote = F, row.names = F)
   ret <- ddply(ret, .(Gene), function(x) {
     ret <- x[1,]
-    ret$pos <- min(x$pos)
-    ret$REF <- mean(x$REF, na.rm = TRUE)
-    ret$HET <- mean(x$HET, na.rm = TRUE)
-    ret$VAR <- mean(x$VAR, na.rm = TRUE)
-    ret$lethal <- min(x$lethal, na.rm = TRUE)
-    ret$additive <- min(x$additive, na.rm = TRUE)
-    ret$recessive <- min(x$recessive, na.rm = TRUE)
-    ret$dominant <- min(x$dominant, na.rm = TRUE)
+    ret$pos <-          natural.min(x$pos)
+    ret$REF <-          natural.mean(x$REF)
+    ret$HET <-          natural.mean(x$HET)
+    ret$VAR <-          natural.mean(x$VAR)
+    ret$lethal <-       natural.min(x$lethal)
+    ret$additive <-     natural.min(x$additive)
+    ret$recessive <-    natural.min(x$recessive)
+    ret$dominant <-     natural.min(x$dominant)
     ret
   })
-
-  tmp.fn <- changeSuffix(fns$csv_file, ".csv", ".minP.csv")
-  write.table(ret, file = tmp.fn, quote = F, row.names = F, sep = ",")
+  rownames(ret) <- ret$Gene
+  ret <- ret[uniqGene, ]
+  tmp.fn <- changeSuffix(fns$csv_file, ".csv", ".minP.tbl")
+  write.table(ret, file = tmp.fn, quote = F, row.names = F)
   loginfo(paste0("Generated ", tmp.fn))
 
   ## Loop each gene
@@ -345,14 +348,16 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
         REF = NA,
         HET = NA,
         VAR = NA,
-        lethal = min(x$lethal, na.rm = TRUE), ## using minimal pval for lethal
+        lethal = natural.min(x$lethal), ## using minimal pval for lethal
         additive = NA,
         recessive = NA,
         dominant = NA,
         numVariant = nrow(x),
         variant = paste(x$pos, sep = ",")) })
+  rownames(retGene) <- retGene$Gene
+  retGene <- retGene[uniqGene, ]
 
-  snapshot("calc.genetic", "calc.genetic.Rdata")
+  snapshot("calc.genetic.gene", "calc.genetic.gene.Rdata")
   retGene <- calc.genetic(retGene, geno.collapse, pheno, pheno.name, isBinary)
   head(retGene)
 
@@ -454,7 +459,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
     }
   }
   if (plot.it) {
-    snapshot("plot.it", "plot.it.Rdata", force = TRUE)
+    snapshot("plot.it.gene", "plot.it.gene.Rdata", force = TRUE)
     ## draw linkage plot
     linkage.plot.pdf <- fns$linkage_file
     pdf(file = linkage.plot.pdf, height = 8, width = 20)
@@ -471,8 +476,10 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
     loginfo(paste0("Generated ", dist.plot.pdf))
   }
 
+  write.table(retGene, file = changeSuffix(fns$csv_file, ".csv", ".tbl"), quote = F, row.names = F)
   write.table(retGene, file = fns$csv_file, quote = F, row.names = F, sep = ",")
   loginfo(paste0("Generated ", fns$csv_file))
+
 
   wd <- getwd()
   save(list = ls(), file = fns$results_file)
@@ -487,7 +494,6 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
                   test,
                   detect,
                   tail))
-  print(msg)
   loginfo(msg)
   loginfo("Exit successfully")
   return(list(returncode = 0, message = "", result = ret))
@@ -597,6 +603,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
 
 ## }
 
+## return collapsed genotype from @param geno, ordered by @param gene
 collapseGenotypeByGene <- function(geno, gene) {
   snapshot("collapseGenotypeByGene", "collapseGenotypeByGene.Rdata")
   uniq.gene <- unique(gene)
@@ -604,8 +611,8 @@ collapseGenotypeByGene <- function(geno, gene) {
   ret <- daply(d, .(gene), function(x) {
     # print(x)
     apply(x[, -1, drop = FALSE], 2, function(x) {
-      if (all(is.na(x))) {return(NA)}
-      return(max(x, na.rm = TRUE))})
+      natural.max(x)
+    })
   })
   ret <- ret[uniq.gene, ]
   ret

@@ -226,3 +226,27 @@ changeSuffix <- function(fn, old.suffix, new.suffix) {
   pattern <- paste0(old.suffix, "$")
   sub(pattern = pattern, replacement = new.suffix, x = fn)
 }
+
+## return mean(x), or NA if x are all missing
+natural.mean<- function(x) {
+  if (all(is.na(x))) {
+    return(NA)
+  }
+  return(mean(x, na.rm = TRUE))
+}
+
+## return min(x), or NA if x are all missing
+natural.min<- function(x) {
+  if (all(is.na(x))) {
+    return(NA)
+  }
+  return(min(x, na.rm = TRUE))
+}
+
+## return max(x), or NA if x are all missing
+natural.max<- function(x) {
+  if (all(is.na(x))) {
+    return(NA)
+  }
+  return(max(x, na.rm = TRUE))
+}
