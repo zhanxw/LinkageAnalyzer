@@ -72,7 +72,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
 
   ## set up log file
   log.file <- file.path(getwd(), file.path(output, "log.txt"))
-  basicConfig()
+  basicConfig('WARN')
   addHandler(writeToFile, file = log.file)
   ## if (file.exists(log.file)) {
   ##   file.remove(log.file)

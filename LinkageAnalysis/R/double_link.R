@@ -124,7 +124,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
 
   ## set up log file
   log.file <- file.path(getwd(), file.path(output, "log.txt"))
-  basicConfig()
+  basicConfig('WARN')
   addHandler(writeToFile, file = log.file)
   fns <- filename(output, prefix)  # generate output file names
 

@@ -158,7 +158,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
 
   ## set up log file
   log.file <- file.path(getwd(), file.path(output, "log.txt"))
-  basicConfig()
+  basicConfig('WARN')
   addHandler(writeToFile, file = log.file)
   fns <- filename(output, prefix)  # generate output file names
 
@@ -273,7 +273,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
   }
 
   ## start fitting alternative models for each variant
-  snapshot("single.link", "dbg.single.fit.alt.Rdata", force = TRUE)
+  snapshot("single.link", "dbg.single.fit.alt.Rdata")
 
   dist.data <- list()
   dist.plots <- list()

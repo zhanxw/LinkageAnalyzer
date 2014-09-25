@@ -2,7 +2,7 @@ Package: LinkageAnalysis
 Type: Package
 Title: Identification of genotypes with statistically significant
     associations with phenotypes and lethality
-Version: 2.4.2
+Version: 2.4.3
 Date: 2014-09-18
 Author: Tao Wang, Xiaowei Zhan, Yang Xie, Bruce Beutler
 Maintainer: Xiaowei Zhan <zhanxw@gmail.com>,

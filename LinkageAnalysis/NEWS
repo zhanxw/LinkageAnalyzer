@@ -1,11 +1,14 @@
 TODO
 More comparison with old versions
-Move causal messages to logs
 Revise documentations
 Add sex specific analysis
 Add teeny and snrnp40 as examples
 Maybe TODO
 * Add G3 counts: REF.G3, HET.G3, VAR.G3
+2.4.3
+* Change default log from INFO to WARN
+* Move causal messages to logs
+* Addresed issue 193
 2.4.2
 * Fix issue 191
 2.4.1

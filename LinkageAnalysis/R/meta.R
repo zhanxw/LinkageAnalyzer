@@ -345,7 +345,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
 
   ## set up log file
   log.file <- file.path(getwd(), file.path(output, "log.txt"))
-  basicConfig()
+  basicConfig('WARN')
   addHandler(writeToFile, file = log.file)
   ## if (file.exists(log.file)) {
   ##   file.remove(log.file)
@@ -452,7 +452,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   }
 
   ## start fitting alternative models for each variant
-  snapshot("meta.link", "dbg.meta.fit.alt.Rdata", force = TRUE)
+  snapshot("meta.link", "dbg.meta.fit.alt.Rdata")
 
   dist.data <- list()
   dist.plots <- list()
@@ -550,7 +550,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
   }
 
   if (plot.it) {
-    snapshot("plot.it", "plot.it.Rdata", force = TRUE)
+    snapshot("plot.it", "plot.it.Rdata")
     ## draw linkage plot
     linkage.plot.pdf <- fns$linkage_file
     pdf(file = linkage.plot.pdf, height = 8, width = 20)
