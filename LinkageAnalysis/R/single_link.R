@@ -113,13 +113,14 @@ single_link <- function(vcfFile, pedFile, pheno.name,
                         output = ".", test = "wG2",
                         detect = "never", silent = T, tail = "decreasing",
                         prefix = "", plot.it = TRUE,
-                        transform.pheno = NULL) {
+                        transform.pheno = NULL,
+                        log.level = 'WARN') {
   log.file <- filename(output, prefix)$log_file
   ret <- tryCatch(
       {
         ret <- single.link.impl(vcfFile, pedFile, pheno.name,
                                 output, test, detect, silent, tail,
-                                prefix, plot.it, transform.pheno)
+                                prefix, plot.it, transform.pheno, log.level)
         if (ret$returncode == 0) {
           msg <- paste("Exit successfully", ret$message, sep = " ")
         } else {
@@ -153,12 +154,13 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
                              output = ".", test = "wG2",
                              detect = "never", silent = T, tail = "decreasing",
                              prefix = "", plot.it = TRUE,
-                             transform.pheno = NULL) {
+                             transform.pheno = NULL,
+                             log.level = 'WARN') {
   start.time <- Sys.time()
 
   ## set up log file
   log.file <- file.path(getwd(), file.path(output, "log.txt"))
-  basicConfig('WARN')
+  basicConfig(log.level)
   addHandler(writeToFile, file = log.file)
   fns <- filename(output, prefix)  # generate output file names
 
@@ -219,7 +221,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
                     NMISS = nas, lethalCount = nas)
   rownames(ret) <- NULL
 
-  report("m", "Load data complete", fns$log_file)
+  loginfo("Load data complete")
   snapshot("single.link.impl", "debug.single.load.Rdata")
 
   ## calculate lethal

@@ -9,7 +9,8 @@ gene.single.link <- function(vcfFile, ## a vector of list
                              tail = "decreasing",
                              prefix = "",
                              plot.it = TRUE,
-                             transform.pheno = NULL) {
+                             transform.pheno = NULL,
+                             log.level = "WARN") {
 
   log.file <- filename(output, prefix)$log_file
   ret <- tryCatch(
@@ -17,7 +18,8 @@ gene.single.link <- function(vcfFile, ## a vector of list
         ret <- gene.single.link.impl(vcfFile, pedFile, pheno.name,
                                      output, test,
                                      detect, silent, tail, prefix,
-                                     plot.it, transform.pheno)
+                                     plot.it, transform.pheno,
+                                     log.level)
         if (ret$returncode == 0) {
           msg <- paste("Exit successfully", ret$message, sep = " ")
         } else {
@@ -67,12 +69,13 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
                                   tail = "decreasing",
                                   prefix = "",
                                   plot.it = TRUE,
-                                  transform.pheno = NULL) {
+                                  transform.pheno = NULL,
+                                  log.level = 'WARN') {
   start.time <- Sys.time()
 
   ## set up log file
   log.file <- file.path(getwd(), file.path(output, "log.txt"))
-  basicConfig('WARN')
+  basicConfig(log.level)
   addHandler(writeToFile, file = log.file)
   ## if (file.exists(log.file)) {
   ##   file.remove(log.file)
@@ -459,7 +462,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
     }
   }
   if (plot.it) {
-    snapshot("plot.it.gene", "plot.it.gene.Rdata", force = TRUE)
+    snapshot("plot.it.gene", "plot.it.gene.Rdata")
     ## draw linkage plot
     linkage.plot.pdf <- fns$linkage_file
     pdf(file = linkage.plot.pdf, height = 8, width = 20)

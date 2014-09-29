@@ -201,7 +201,9 @@ plot.manhattan <- function(data, main = "") {
     ## only exhibit top 20 genes
     d.highlight <- d.highlight[order(d.highlight$Pval)[1:20], ]
   }
-  print(d.highlight)
+  if (getLogger()$level <= loglevels['INFO']) {
+    print(d.highlight)
+  }
   last.chrom.idx <- -1
   for (i in seq_len(nrow(d.highlight))) {
     ## print(i)
@@ -209,7 +211,7 @@ plot.manhattan <- function(data, main = "") {
     x <- chrom.left[chrom.idx] + d.highlight$Position[i]
     y <- -log10(d.highlight$Pval[i])
 
-    print(x)
+    # print(x)
     addAlpha <- function(name, alpha = 1) {
       v <- col2rgb(name)
       v <- v / 255

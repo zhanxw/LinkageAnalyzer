@@ -217,8 +217,10 @@ get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
     if (!is.null(transform.pheno)) {
       if (transform.pheno == "log" || transform.pheno == "log10") {
         if (any(pheno$phenotype <= 0)) {
-          print(pheno$phenotype)
-          report("w", "At least one phenotype is non-positive and cannot be log transformed - now filled with minimum positive values", log_file)
+          if (getLogger()$level <= loglevels['INFO']) {
+            print(pheno$phenotype)
+            report("w", "At least one phenotype is non-positive and cannot be log transformed - now filled with minimum positive values", log_file)
+          }
           min.pheno <- min (pheno$phenotype [ pheno$phenotype > 0], na.rm = TRUE)
           pheno$phenotype [ pheno$phenotype <= 0] <- min.pheno
         }
@@ -708,12 +710,16 @@ ped.summarize <- function(ped) {
   n <- sum(is.na(ped$gen))
   cat("  Generation unknown ", n, " mice\n")
 
-  cat("PED gender distribution:\n")
-  print(table(ped$sex, exclude = NULL))
+  if (getLogger()$level <= loglevels['INFO']) {
+    cat("PED gender distribution:\n")
+    print(table(ped$sex, exclude = NULL))
+  }
 
   for (i in 6:ncol(ped)) {
-    cat("PED phenotype summary: ", colnames(ped)[i], "\n")
-    print(summary(ped[,i]))
+    if (getLogger()$level <= loglevels['INFO']) {
+      cat("PED phenotype summary: ", colnames(ped)[i], "\n")
+      print(summary(ped[,i]))
+    }
   }
 }
 
@@ -810,12 +816,17 @@ prepare.model.data <- function(vcf, ped, pheno.name) {
   # check missing rate
   missing <- rowMeans(is.na(geno))
   idx <- missing > 0.5
-  msg <- sprintf("%d variants have >0.5 missing rate", sum(idx, na.rm = TRUE))
-  logwarn(msg)
+  if (sum(idx, na.rm = TRUE) > 0) {
+    msg <- sprintf("%d variants have >0.5 missing rate", sum(idx, na.rm = TRUE))
+    logwarn(msg)
+  }
+
   missing <- colMeans(is.na(geno))
   idx <- missing > 0.5
-  msg <- sprintf("%d samples have >0.5 missing rate", sum(idx, na.rm = TRUE))
-  logwarn(msg)
+  if (sum(idx, na.rm = TRUE) > 0) {
+    msg <- sprintf("%d samples have >0.5 missing rate", sum(idx, na.rm = TRUE))
+    logwarn(msg)
+  }
 
   # report # of mice for models
   msg <- sprintf("%d mice and %d variants will be analyzed in models", ncol(geno), nrow(geno))

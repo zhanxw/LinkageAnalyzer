@@ -46,7 +46,8 @@ meta.single.link <- function(vcfFile, ## a vector of list
                              tail = "decreasing",
                              prefix = "",
                              plot.it = TRUE,
-                             transform.pheno = NULL) {
+                             transform.pheno = NULL,
+                             log.level = 'WARN') {
 
   log.file <- filename(output, prefix)$log_file
   ret <- tryCatch(
@@ -54,7 +55,8 @@ meta.single.link <- function(vcfFile, ## a vector of list
         ret <- meta.single.link.impl(vcfFile, pedFile, pheno.name,
                                      output, test,
                                      detect, silent, tail, prefix,
-                                     plot.it, transform.pheno)
+                                     plot.it, transform.pheno,
+                                     log.level)
         if (ret$returncode == 0) {
           msg <- paste("Exit successfully", ret$message, sep = " ")
         } else {
@@ -340,12 +342,13 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
                                   tail = "decreasing",
                                   prefix = "",
                                   plot.it = TRUE,
-                                  transform.pheno = NULL) {
+                                  transform.pheno = NULL,
+                                  log.level = 'WARN') {
   start.time <- Sys.time()
 
   ## set up log file
   log.file <- file.path(getwd(), file.path(output, "log.txt"))
-  basicConfig('WARN')
+  basicConfig(log.level)
   addHandler(writeToFile, file = log.file)
   ## if (file.exists(log.file)) {
   ##   file.remove(log.file)
