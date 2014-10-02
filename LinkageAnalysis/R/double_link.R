@@ -105,8 +105,7 @@ double_link <- function(vcfFile, pedFile, pheno.name,
       },
       error = function(err) {
         snapshot("double.link.impl", "debug.double.link.impl.Rdata")
-        print(str(err))
-        print(err)
+        reportError(err)
         msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
         msg <- paste("Exit failed", msg, sep = " ")
         report("m", msg, log.file)
@@ -196,7 +195,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
   ##                   Penetrance_REF = nas, Penetrance_HET = nas, Penetrance_VAR = nas, Semidominance = nas)
   ## rownames(ret) <- NULL
 
-  report("m", "Load data complete", fns$log_file)
+  loginfo("Load data complete")
   snapshot("double.link.impl", "debug.double.load.Rdata")
 
 
@@ -279,7 +278,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
     gt1 <- geno[i, ]  # genotype of the first gene
 
     for (j in (i + 1):nSite) {
-      print(sprintf("%s - %s x %s - (%d, %d, %d) - %.3f%%",
+      logdebug(sprintf("%s - %s x %s - (%d, %d, %d) - %.3f%%",
                     Sys.time(),
                     gene[i], gene[j],
                     i, j, nSite,
@@ -287,7 +286,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
       gt2 <- geno[j, ]  # genotype of the second gene
       tmp <- convert_gt(gt1, "additive") - convert_gt(gt2, "additive")
       if (sum(!is.na(tmp)) <= 10) {
-        report("m", "Small pedigree analysis starts.", fns$log_file)
+        logdebug("Small pedigree analysis starts.")
         ## next
       }  # too many NA values
 
@@ -358,8 +357,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
               },
               error = function(err) {
                 snapshot("double.link.impl", "debug.double.link.impl.Rdata")
-                print(str(err))
-                print(err)
+                reportError(err)
                 msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
                 msg <- paste("Fitting failed", msg, sep = " ")
                 report("m", msg, fns$log_file)

@@ -5,6 +5,8 @@ Add sex specific analysis
 Add teeny and snrnp40 as examples
 Maybe TODO
 * Add G3 counts: REF.G3, HET.G3, VAR.G3
+2.4.5
+* Futher reduce logging and categorize logging messages
 2.4.4
 * Reduce information again
 2.4.3

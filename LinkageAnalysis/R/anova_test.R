@@ -153,7 +153,7 @@ anova_test <- function(data, bin, test, silent = T, log_file, tail,
       }
       msg <- sprintf("Error occured in ANOVA: %s", m)
       report("m", msg, log_file)
-      print(err)
+      reportError(err)
       ## cat("err=\n")
       ## print(err)
     }

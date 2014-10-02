@@ -139,8 +139,7 @@ single_link <- function(vcfFile, pedFile, pheno.name,
       },
       error = function(err) {
         snapshot("single.link.impl", "debug.single.link.impl.Rdata")
-        print(str(err))
-        print(err)
+        reportError(err)
         msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
         msg <- paste("Exit failed", msg, sep = " ")
         report("m", msg, log.file)

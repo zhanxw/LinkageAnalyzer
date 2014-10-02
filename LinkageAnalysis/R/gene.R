@@ -48,8 +48,7 @@ gene.single.link <- function(vcfFile, ## a vector of list
           return(list(returncode = 0, message = msg))
         }
 
-        print(str(err))
-        print(err)
+        reportError(err)
         msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
         msg <- paste("Exit failed", msg, sep = " ")
         report("m", msg, log.file)

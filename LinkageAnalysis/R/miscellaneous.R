@@ -94,7 +94,7 @@ report <- function(type, word, log_file = NULL, eol = TRUE) {
       cat(paste(word, suffix), file = log_file, append = TRUE)
     }
     loginfo(word)
-    cat(paste(word, suffix))
+    # cat(paste(word, suffix))
   } else if (type == "w") {
     # warnings
     if (!is.null(log_file)) {
@@ -153,13 +153,13 @@ source.all.file <- function(dir = ".") {
   for (i in fn) {
     source(i)
   }
- if (TRUE) {
-   library(stringr)
-   library(plyr)
-   library(ggplot2)
-   library(gplots)
-   library(lme4)
- }
+  if (TRUE) {
+    library(stringr)
+    library(plyr)
+    library(ggplot2)
+    library(gplots)
+    library(lme4)
+  }
 }
 if (FALSE) {
   source.all.file("~/test.run/LinkageAnalysis/R")
@@ -249,4 +249,33 @@ natural.max<- function(x) {
     return(NA)
   }
   return(max(x, na.rm = TRUE))
+}
+
+hasNewVersion <- function() {
+  ## get new version
+  newVersionLink = "http://zhanxw.com:8080/LinkageAnalysis/version"
+  tmpFile <- tempfile()
+  download.file(newVersionLink, tmpFile, quiet = TRUE)
+  ret <- tryCatch(readLines(tmpFile), error = function(e) {NULL})
+  unlink(tmpFile)
+
+  if (!is.null(ret) && length(ret) == 2) {
+    version <- ret[1]
+    if (utils::packageVersion("LinkageAnalysis") < version) {
+      if (length(ret) > 1) {
+        packageStartupMessage(ret[2])
+      } else {
+        packageStartupMessage("Found new version of LinkageAnalaysis: ", ret)
+      }
+      return(TRUE)
+    }
+  }
+  return(FALSE)
+}
+
+reportError <- function(err){
+  if (getLogger()$level <= loglevels['WARN']) {
+    print(str(err))
+    print(err)
+  }
 }

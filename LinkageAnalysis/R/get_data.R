@@ -247,8 +247,7 @@ get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
         mclust3 <- Mclust(pheno$phenotype, G = 3, modelNames = "E")
         (list(returncode = 0))
       }, error = function(err) {
-        print(str(err))
-        print(err)
+        reportError(err)
         msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
         msg <- paste("Cluster detection failed ", msg, " with ", nrow(pheno), " samples.", sep = " ")
         report("m", msg, log_file)

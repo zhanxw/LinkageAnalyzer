@@ -85,8 +85,7 @@ meta.single.link <- function(vcfFile, ## a vector of list
           return(list(returncode = 0, message = msg))
         }
 
-        print(str(err))
-        print(err)
+        reportError(err)
         msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
         msg <- paste("Exit failed", msg, sep = " ")
         report("m", msg, log.file)
@@ -113,7 +112,7 @@ run.mixed.effect.alt.model <- function(isBinary, alt.model, pheno) {
       },
       error = function(err) {
         logwarn(paste0("Fit [ ", alt.model, " binary =", isBinary, " ] failed ", str(err)))
-        print(err)
+        reportError(err)
         msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
         return(list(returncode = 1, message = msg, error = err, isBinary = isBinary, alt.model = alt.model))
       })
@@ -275,8 +274,7 @@ fit.null.model <- function(null.model, pheno, isBinary, has.random.effect) {
           }
         },
         error = function(err) {
-          print(str(err))
-          print(err)
+          reportError(err)
           msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
           return(list(returncode = 1, message = msg, error = err))
         })
@@ -293,8 +291,7 @@ fit.null.model <- function(null.model, pheno, isBinary, has.random.effect) {
             null
           },
           error = function(err) {
-            print(str(err))
-            print(err)
+            reportError(err)
             msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
             return(list(returncode = 1, message = msg, error = err))
           })
@@ -311,8 +308,7 @@ fit.null.model <- function(null.model, pheno, isBinary, has.random.effect) {
           null
         },
         error = function(err) {
-          print(str(err))
-          print(err)
+          reportError(err)
           msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
           return(list(returncode = 1, message = msg, error = err))
         })
