@@ -1,4 +1,45 @@
+#' Meta-analyze single gene in super pedigree
+#'
+#' Perform gene-based superpedigree analysis
+#'
+#' @param vcfFile genotype input file in VCF format
+#' @param pedFile pedigree file in PED format
+#' @param pheno.name phenotype name to analyze
+#' @param output The output folder to put all the output files of the analysis
+#' @param test The statistical test to be used for identifying significant genes
+#' associated with phenotype. Default is "wG2", considering G2 mother
+#' effect. Another option is "woG2", not considering that effect.
+#' @param detect A character string specifying whether to detect clustering of
+#' phenotypic scores and to transform continuous phenotypic scores into a binary
+#' variable (affected and nonaffected). This parameter only works on continuous
+#' phenotype scores. "never" (default): never transform; "always": always
+#' transform; "auto": let the program decide whether to transform.
+#' @param silent  Print intermediate messages to stdout if set to TRUE.
+#' @param tail Either "decreasing", "increasing" or "both". "decreasing" tests
+#' whether the mutation leads to decreased antibody reaction (default);
+#' "increasing" tests whether the mutation leads to increased antibody reaction;
+#' "both" tests the deviation in either direction.
+#' @param prefix Default is "". An optional character string to be attached to
+#' output file names. This can create personalized names for each job.
+#' @param plot.it Default is TRUE, it controls whether to output linkage plots
+#' and distribution plots.
+#' @param transform.pheno Default is NULL. Use "log" if phenotypes need to log
+#' transformed.
+#' @param log.level Default WARN, but can be set from 'DEBUG', 'INFO', 'WARN'
+#' and 'ERROR'.
+#'
+#' @return a list of three values will be returned:
+#' the first one is returncode (0: success, non-zero: errors happened)
+#' the second one is message, when return is non-zero, message gives explanations
+#' the last one is analysis results.
 #' @export
+#' @examples
+#' path <- system.file("extdata/gene",package="LinkageAnalysis")
+#' vcfFile <- file.path(path, "Snrnp40.mcmv.vcf")
+#' pedFile <- file.path(path, "Snrnp40.mcmv.ped")
+#' pheno.name <- "log"
+#' output <- file.path(path, "output")
+#' ret <- gene.single.link(vcfFile, pedFile, pheno.name, output, test = "woG2", tail = "both", prefix="gene")
 gene.single.link <- function(vcfFile, ## a vector of list
                              pedFile, ## a vector of list
                              pheno.name, ## which phenotype to use
@@ -11,7 +52,7 @@ gene.single.link <- function(vcfFile, ## a vector of list
                              plot.it = TRUE,
                              transform.pheno = NULL,
                              log.level = "WARN") {
-
+  collectUsage("gene.single.link")
   log.file <- filename(output, prefix)$log_file
   ret <- tryCatch(
       {
@@ -321,6 +362,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
   write.table(genoCount, file = changeSuffix(fns$csv_file, ".csv", ".preCollapseGeno.tbl"), quote = F, row.names = F)
   loginfo("Collapsing statistics")
   write.table(ret, file = changeSuffix(fns$csv_file, ".csv", ".variant.tbl"), quote = F, row.names = F)
+  Gene <- NULL ## bypass CRAN check
   ret <- ddply(ret, .(Gene), function(x) {
     ret <- x[1,]
     ret$pos <-          natural.min(x$pos)

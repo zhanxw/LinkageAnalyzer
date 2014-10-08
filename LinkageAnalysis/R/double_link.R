@@ -2,10 +2,9 @@
 #'
 #' @description This function tests whether the combination of two mutations
 #' could be correlated with phenotype.
-#' @param main_file \code{raw_file} is an csv file containing main data. See
-#' \code{details} for more information.
-#' @param G2_file \code{G2_file} is an optional csv file containing G2 genotype
-#' data, if such data are available. See \code{details} for more information.
+#' @param vcfFile genotype input file in VCF format
+#' @param pedFile pedigree file in PED format
+#' @param pheno.name phenotype name to analyze
 #' @param output The output folder to put all the output files of the analysis
 #' @param test The statistical test to be used for identifying significant genes
 #' associated with phenotype. Default is "woG2", without considering G2 mother
@@ -32,10 +31,11 @@
 #' and distribution plots.
 #' @param transform.pheno Default is NULL. Use "log" if phenotypes need to log
 #' transformed.
+#' @param log.level Default WARN, but can be set from 'DEBUG', 'INFO', 'WARN'
+#' and 'ERROR'.
 #'
 #' @details
-#' For the format of \code{main_file} and \code{G2_file}, please refer
-#' to \code{single_link}.  The \code{double_link} function has 4 modes:
+#' The \code{double.link} function has 4 modes:
 #' recessive, additive, dominant and inhibitory. Refer to the tutorial attached
 #' in the package for the assumption in each mode. Recessive, additive, dominant
 #' and inhibitory modes test whether the interaction between two genes could
@@ -44,7 +44,7 @@
 #' different assumption in each mode to test the combinatory effects of two
 #' genes. \code{cutoff_single} is suggested to be set to a value between 0-1, in
 #' order to mask genes which themselves are already shown to be significantly
-#' correlated with phenotype by \code{single_link}.  A PDF file
+#' correlated with phenotype by \code{single.link}.  A PDF file
 #' \code{linkage_plot} will be generated. It will contain 4 heatmap plots of p
 #' values in each of the four modes. The p values are transformed to a -log10
 #' scale. 4 CSV files containing the matrix of p values for each of the 4 modes
@@ -56,30 +56,31 @@
 #' with genotype of VAR,VAR; VAR,HET; and HET,VAR will have any decreased chance
 #' of survival. The p values for synthetic lethality are presented along with
 #' the p values for combinatory effect.
-#' @return No return value.
-#' @seealso \code{\link{single_link}}.
+#' @return a list of two values will be returned. One is returncode (0: success).
+#' The other is analysis results.
+#' @seealso \code{\link{single.link}}.
 #' @export
 #' @examples
-#' main_file <-
-#'   system.file("extdata/Aquamarine_QM_Report.csv",package="LinkageAnalysis")
-#' main_file_continuous <-
-#'   system.file("extdata/Aquamarine_QM_Report_continuous.csv",package="LinkageAnalysis")
-#' G2_file <-
-#'   system.file("extdata/Aquamarine_QM_Report_G2.csv",package="LinkageAnalysis")
-#' output <-
-#'   sub(pattern="Aquamarine_QM_Report.csv",replacement="output",x=main_file)
-#'
-#' # if categorical phenotype scores are given
-#' double_link(main_file,G2_file,output=output,silent=TRUE,prefix="double")
-#' # if continuous numerical phenotype scores are given
-#' double_link(main_file_continuous,G2_file,output=output,silent=TRUE,prefix="double")
-double_link <- function(vcfFile, pedFile, pheno.name,
-                        output = ".", test = "woG2",
+#' path <- system.file("extdata/double",package="LinkageAnalysis")
+#' vcfFile <- file.path(path, "R0491_body_weight.vcf")
+#' pedFile <- file.path(path, "R0491_body_weight.ped")
+#' pheno.name <- "weight"
+#' output <- file.path(path, "output")
+#' ret <- double.link(vcfFile, pedFile, pheno.name, output, test = "woG2", tail = "both", prefix="double")
+double.link <- function(vcfFile,
+                        pedFile,
+                        pheno.name,
+                        output = ".",
+                        test = "woG2",
                         detect = "never",
-                        silent = TRUE, tail = "decreasing", prefix = "",
-                        cutoff_single = 0.01, plot.it = TRUE,
+                        silent = TRUE,
+                        tail = "decreasing",
+                        prefix = "",
+                        cutoff_single = 0.01,
+                        plot.it = TRUE,
                         transform.pheno = NULL,
                         log.level = 'WARN') {
+  collectUsage("double.link")
   log.file <- filename(output, prefix)$log_file
   ret <- tryCatch(
       {
@@ -218,6 +219,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
       tmp <- ped
       tmp$gt1 <- convert_gt(vcf$GT[i,], "additive")
       tmp$gt2 <- convert_gt(vcf$GT[j,], "additive")
+      gen <- NULL ## bypass CRAN check
       tmp <- subset(tmp, gen == 2 | gen == 3)
       ## check mother genotypes
       tmp <- crossCheckMotherGenotype(tmp, "gt1")
@@ -250,7 +252,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
   } else {
     logerror("Fitting null model failed!")
     loginfo("Outputting p value matrix anyway: %s",
-            sub(patter = "full", replacement = "\\*", fns$csv_file))
+            sub(pattern = "full", replacement = "\\*", fns$csv_file))
     for (type in c("recessive", "additive", "dominant", "inhibitory", "lethal")) {
       write.csv(ret[[type]], file = sub(pattern = "full", replacement = paste(type),
                                  fns$csv_file), quote = FALSE)
@@ -377,12 +379,12 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
     } ## end loop j
   } ## end loop i
 
-  ## # run single_link to determine which genes to mask
+  ## # run single.link to determine which genes to mask
   ## if (silent == FALSE) {
-  ##   report("m", "Running double_link", fns$log_file)
+  ##   report("m", "Running double.link", fns$log_file)
   ## }
-  ## single_link(main_file = main_file, G2_file = G2_file, detect = detect, output = tempdir(),
-  ##             silent = TRUE, test = test, tail = tail, plot.it = FALSE)  # run single_link
+  ## single.link(main_file = main_file, G2_file = G2_file, detect = detect, output = tempdir(),
+  ##             silent = TRUE, test = test, tail = tail, plot.it = FALSE)  # run single.link
   ## SignifOfSingle <- read.csv(filename(tempdir(), prefix = "")$csv_file)  # get significance
   ## SignifOfSingle$inhibitory <- 1  # dummy for inhibitory mode, include all
   ## unlink(as.vector(filename(tempdir(), prefix = "")))
@@ -494,7 +496,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
   }
   end.time <- Sys.time()
   diff.time <- difftime(end.time, start.time, units = "secs")
-  msg <- (sprintf("double_link() finished in %.3f seconds - [vcfFile=%s;pedFile=%s;pheno.name=%s;test=%s;detect=%s;tail=%s]",
+  msg <- (sprintf("double.link() finished in %.3f seconds - [vcfFile=%s;pedFile=%s;pheno.name=%s;test=%s;detect=%s;tail=%s]",
                   diff.time,
                   vcfFile, pedFile, pheno.name,
                   test,
@@ -694,12 +696,12 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
 ##     } ## end loop j
 ##   } ## end loop i
 
-##   # run single_link to determine which genes to mask
+##   # run single.link to determine which genes to mask
 ##   if (silent == FALSE) {
-##     report("m", "Running double_link", fns$log_file)
+##     report("m", "Running double.link", fns$log_file)
 ##   }
-##   single_link(main_file = main_file, G2_file = G2_file, detect = detect, output = tempdir(),
-##               silent = TRUE, test = test, tail = tail, plot.it = FALSE)  # run single_link
+##   single.link(main_file = main_file, G2_file = G2_file, detect = detect, output = tempdir(),
+##               silent = TRUE, test = test, tail = tail, plot.it = FALSE)  # run single.link
 ##   SignifOfSingle <- read.csv(filename(tempdir(), prefix = "")$csv_file)  # get significance
 ##   SignifOfSingle$inhibitory <- 1  # dummy for inhibitory mode, include all
 ##   unlink(as.vector(filename(tempdir(), prefix = "")))
@@ -800,7 +802,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
 ##   }
 ##   end.time <- Sys.time()
 ##   diff.time <- difftime(end.time, start.time, units = "secs")
-##   msg <- (sprintf("double_link() finished in %.3f seconds - [main=%s;G2=%s;test=%s;detect=%s;tail=%s]",
+##   msg <- (sprintf("double.link() finished in %.3f seconds - [main=%s;G2=%s;test=%s;detect=%s;tail=%s]",
 ##                   diff.time,
 ##                   main_file,
 ##                   G2_file,

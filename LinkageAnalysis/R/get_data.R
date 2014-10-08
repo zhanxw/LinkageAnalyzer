@@ -789,6 +789,7 @@ prepare.model.data <- function(vcf, ped, pheno.name) {
   for (i in seq_len(nrow(vcf$GT))) {
     tmp <- data.frame(geno = vcf$GT[i,], iid = vcf$sampleId)
     tmp <- join(tmp, ped[,c("fid", "iid")], by = "iid")
+    fid <- allMissing <- NULL ## bypass CRAN check
     tmp2 <- ddply(tmp, .(fid), function(x){c(allMissing = (all(is.na(x$geno))))})
     idx <- tmp$fid %in% subset(tmp2, allMissing == TRUE)$fid
     vcf$GT[i, idx] <- 0  ## impute as REF

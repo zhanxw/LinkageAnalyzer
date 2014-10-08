@@ -1,27 +1,27 @@
-#' @title Parse the analysis results of multiple runs of single_link
+#' @title Parse the analysis results of multiple runs of single.link
 #'
 #' @description
 #' This function loads the RData file under each folder for one
-#' \code{single_link} analysis event and make a summary of the analysis results
+#' \code{single.link} analysis event and make a summary of the analysis results
 #' for multiple runs. WARNING: under each folder specified by \code{runs}, there
-#' can only be the output files of one run of \code{single_link}!
+#' can only be the output files of one run of \code{single.link}!
 #'
 #' @param dir The main directory where there are at least one sub-folder which
-#' contain(s) the analysis results of \code{single_link}
+#' contain(s) the analysis results of \code{single.link}
 #' @param runs A vector of character strings. The sub-folder name(s) directly
-#' under \code{dir} containing the analysis results of \code{single_link} that
+#' under \code{dir} containing the analysis results of \code{single.link} that
 #' should be pooled and parsed. WARNING: under each folder specified by
 #' \code{runs}, there can only be the output files of one run of
-#' \code{single_link}!
+#' \code{single.link}!
 #' @param output The output folder to put the summarized output
 #' @param prefix Default is "". An optional character string to be attached to
 #' output file names. This can create personalized names for each job.
 #' @param silent Print intermediate messages to stdout if set to FALSE.
-#' @details The analysis output from multiple runs of \code{single_link} will be
+#' @details The analysis output from multiple runs of \code{single.link} will be
 #' parsed and summarized into a .csv file to be put under \code{output}. A .txt
 #' log file will also be generated.
 #' @return No return value.
-#' @seealso \code{\link{single_link}}
+#' @seealso \code{\link{single.link}}
 #' @export
 #' @examples
 #' dir=system.file("extdata/single",package="LinkageAnalysis")

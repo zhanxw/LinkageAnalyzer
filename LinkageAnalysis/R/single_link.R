@@ -5,10 +5,9 @@
 #' analysis for the significance of correlation with phenotype and homozygous
 #' lethality for each gene.
 #'
-#' @param main_file \code{raw_file} is an csv file containing main data.
-#' See \code{details} for more information.
-#' @param G2_file \code{G2_file} is an optional csv file containing G2 genotype
-#' data, if such data are available. See \code{details} for more information.
+#' @param vcfFile genotype input file in VCF format
+#' @param pedFile pedigree file in PED format
+#' @param pheno.name phenotype name to analyze
 #' @param output The output folder to put all the output files of the analysis
 #' @param test The statistical test to be used for identifying significant genes
 #' associated with phenotype. Default is "wG2", considering G2 mother effect.
@@ -29,46 +28,20 @@
 #' and distribution plots.
 #' @param transform.pheno Default is NULL. Use "log" if phenotypes need to log
 #' transformed.
+#' @param log.level Default WARN, but can be set from 'DEBUG', 'INFO', 'WARN'
+#' and 'ERROR'.
 #'
-#' @details First of all, this package depends on \code{lme4}. The current
-#' version of this package on CRAN does not seem to be a stable one (at least on
-#' my computer). I put an archived version of the lme4 package in the
-#' \code{inst/extdata} folder of the \code{LinkageAnalysis} package. It works
-#' well on my Linux system. You can install it from source on your Linux
-#' platform, too. If you are working on PC/Mac, then you may also need to search
-#' for one version of the \code{lme4} package that is stable on your machine.
-#' \code{main_file} is a csv file with fixed format. The six cells in A1-B3 can
-#' be anything. A4 must be "Gene", B4 must be "Coordination", C4 must be
-#' "Amplicon", C3 must be "Phenotype", C2 must be "G3 gender" and C1 must be "G2
-#' Dam eartag". The cells below A4 are gene names. The cells below B4 are
-#' genomic locations ("1_100", for example, means chr1 and the 100th bp). The
-#' cells below C4 are Amplicon. The cells to the right of C4 G3 eartag. The
-#' cells to the right of C3 are phenotypes. They can be categorical values like,
-#' "Affected", "Intermediate" and "Unaffected" or they can be numerical values,
-#' but can not be a mixture of both. The cells to the right of C2 are G3 gender
-#' and must be one of "F" and "M". The cells to the right of C1 are "G2 Dam
-#' eartag". The cells in the bottom-right area are the genotypes. "REF", "HET"
-#' and "VAR" correspond to wild-type, heterozygous mutant and homozygous
-#' mutant. Other symbols will be treated as NA values. A sample raw input file
-#' is stored in the \code{inst/extdata} folder of this package.  \code{G2_file}
-#' is an optional csv file with fixed format. A1 must be "Gene", B1 must be
-#' "Coordination" and C1 must be "Amplicon". The cells below A1 are gene
-#' names. The cells below B1 are genomic locations. The cells below C1 are
-#' Amplicon. The cells to the right of C1 are G2 dam names. The cells below G2
-#' dam names are the G2 genotypes. "REF", "HET" and "VAR" correspond to
-#' wild-type, heterozygous mutant and homozygous mutant. Other symbols will be
-#' treated as NA values. A sample raw input file is stored in the
-#' \code{inst/extdata} folder of this package. The \code{G2_file} can contain
-#' more or less G2 dam mice and more or less genes than the
-#' \code{main_file}. The algorithm will calculate the p values for lethality
-#' according to different algorithms based on whether G2 dam mice are available
+#' @details single.link takes a VCF file as genotype covariates and a PED format
+#' as phenotype (response).  A sample input file is stored in the
+#' \code{inst/extdata/single} folder of this package. The algorithm will
+#' calculate the p values for lethality conditioning on G2 dam mice genotype
 #' for a certain gene. The final p value is the combined p values from all the
 #' G3 mice.  A PDF file will be generated. It will contain a diagnostic plot if
-#' continuous phenotype scores are provided in the \code{main_file}. It will
-#' contain another three manhattan plots, each assuming one of the three
-#' "additive", "recessive" and "dominant" models. The two cutoff values are 0.05
-#' and 0.05/(number of genes). The p values are transformed to a -log10
-#' scale. It will also contain a plot for the analysis result of TDT analysis.
+#' continuous phenotype scores are provided. It will then contain three
+#' manhattan plots, each assuming one of the three "additive", "recessive" and
+#' "dominant" models. The two cutoff values are 0.05 and 0.05/(number of genes).
+#' The p values are transformed to a -log10 scale for better visualization.
+#' It also contain a plot for the analysis results from TDT analysis.
 #' A CSV file containing will be generated. Columns names are in the first
 #' line. The REF, HET, VAR columns are the number of mice with each genotype for
 #' each gene. The "lethal" column is the p value for testing homozygous
@@ -93,28 +66,29 @@
 #' effect on the survival of mice at the time of data collection". chrX genes
 #' are ignored for the moment.
 #'
-#' @return No return value.
+#' @return a list of two values will be returned. One is returncode (0: success).
+#' The other is analysis results.
 #' @export
 #' @examples
-#' main_file <-
-#'   system.file("extdata/Aquamarine_QM_Report.csv",package="LinkageAnalysis")
-#' main_file_continuous <-
-#'   system.file("extdata/Aquamarine_QM_Report_continuous.csv",package="LinkageAnalysis")
-#' G2_file <-
-#'   system.file("extdata/Aquamarine_QM_Report_G2.csv",package="LinkageAnalysis")
-#' output <-
-#'   sub(pattern="Aquamarine_QM_Report.csv",replacement="output",x=main_file)
-#'
-#' # if categorical phenotype scores are given
-#' single_link(main_file,G2_file,output=output,silent=TRUE,prefix="single")
-#' # if continuous numerical phenotype scores are given
-#' single_link(main_file_continuous,G2_file,output=output,silent=TRUE,prefix="single")
-single_link <- function(vcfFile, pedFile, pheno.name,
-                        output = ".", test = "wG2",
-                        detect = "never", silent = T, tail = "decreasing",
-                        prefix = "", plot.it = TRUE,
+#' path <- system.file("extdata/single",package="LinkageAnalysis")
+#' vcfFile <- file.path(path, "R0491_body_weight.vcf")
+#' pedFile <- file.path(path, "R0491_body_weight.ped")
+#' pheno.name <- "weight"
+#' output <- file.path(path, "output")
+#' ret <- single.link(vcfFile, pedFile, pheno.name, output, test = "woG2", tail = "both", prefix="single")
+single.link <- function(vcfFile,
+                        pedFile,
+                        pheno.name,
+                        output = ".",
+                        test = "wG2",
+                        detect = "never",
+                        silent = T,
+                        tail = "decreasing",
+                        prefix = "",
+                        plot.it = TRUE,
                         transform.pheno = NULL,
                         log.level = 'WARN') {
+  collectUsage("single.link")
   log.file <- filename(output, prefix)$log_file
   ret <- tryCatch(
       {
@@ -395,7 +369,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
 
   end.time <- Sys.time()
   diff.time <- difftime(end.time, start.time, units = "secs")
-  msg <- (sprintf("single_link() finished in %.3f seconds - [vcfFile=%s;pedFile=%s;pheno.name=%s;test=%s;detect=%s;tail=%s]",
+  msg <- (sprintf("single.link() finished in %.3f seconds - [vcfFile=%s;pedFile=%s;pheno.name=%s;test=%s;detect=%s;tail=%s]",
                   diff.time,
                   vcfFile,
                   pedFile,

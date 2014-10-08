@@ -67,6 +67,7 @@ diagnostic <- function(phenotype, bin, log_file, unconverted) {
 
 plot.hist <- function(x, main = "") {
   x <- data.frame(x = as.numeric(x))
+  ..density.. <- ..count.. <- NULL ## bypass CRAN check
   g <- ggplot(x, aes(x = x)) +
       geom_histogram(aes(y = ..density.., fill = ..count..)) +
       geom_density(col = "gold1", size = 1.5) + xlab("Phenotype scores") + ylab("Density") + ggtitle(main)

@@ -1,0 +1,8 @@
+Version: 2.4.6 
+Date: 2014-10-07 22:10:48 
+Host: purcell 
+Call: source("generateExampleOutputs.R") 
+Total  65  gene(s) to test 
+The Bonferroni cutoff is 2.4e-05 
+double.link() finished in 87.926 seconds - [vcfFile=/home/zhanxw/R/LinkageAnalysis/extdata/double/R0491_body_weight.vcf;pedFile=/home/zhanxw/R/LinkageAnalysis/extdata/double/R0491_body_weight.ped;pheno.name=weight;test=woG2;detect=never;tail=both] 
+Exit successfully  

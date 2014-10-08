@@ -153,13 +153,13 @@ source.all.file <- function(dir = ".") {
   for (i in fn) {
     source(i)
   }
-  if (TRUE) {
-    library(stringr)
-    library(plyr)
-    library(ggplot2)
-    library(gplots)
-    library(lme4)
-  }
+  ## if (TRUE) {
+  ##   library(stringr)
+  ##   library(plyr)
+  ##   library(ggplot2)
+  ##   library(gplots)
+  ##   library(lme4)
+  ## }
 }
 if (FALSE) {
   source.all.file("~/test.run/LinkageAnalysis/R")
@@ -251,31 +251,38 @@ natural.max<- function(x) {
   return(max(x, na.rm = TRUE))
 }
 
-hasNewVersion <- function() {
-  ## get new version
-  newVersionLink = "http://zhanxw.com:8080/LinkageAnalysis/version"
-  tmpFile <- tempfile()
-  download.file(newVersionLink, tmpFile, quiet = TRUE)
-  ret <- tryCatch(readLines(tmpFile), error = function(e) {NULL})
-  unlink(tmpFile)
-
-  if (!is.null(ret) && length(ret) == 2) {
-    version <- ret[1]
-    if (utils::packageVersion("LinkageAnalysis") < version) {
-      if (length(ret) > 1) {
-        packageStartupMessage(ret[2])
-      } else {
-        packageStartupMessage("Found new version of LinkageAnalaysis: ", ret)
-      }
-      return(TRUE)
-    }
-  }
-  return(FALSE)
-}
-
 reportError <- function(err){
   if (getLogger()$level <= loglevels['WARN']) {
     print(str(err))
     print(err)
   }
+}
+
+## get license as a character vector of length 1, or NULL if failed
+getLicense <- function() {
+  license <- system.file("LICENSE", package = "LinkageAnalysis")
+  if (file.exists(license)) {
+    return(paste(readLines(license), collapse = '\n'))
+  } else {
+    return(NULL)
+  }
+}
+
+## send analysis type and current version to remote usage collection server
+collectUsage <- function(type) {
+  # send a customized url
+  ver <- packageVersion("LinkageAnalysis")
+  url <- sprintf("http://zhanxw.com/LinkageAnalysis/count.php?version=%s&type=%s", ver, type)
+  tmpFile <- tempfile()
+  ret <- tryCatch({
+      download.file(url, tmpFile, quiet = TRUE)
+      readLines(tmpFile)
+    }, error = function(e) {NULL})
+  unlink(tmpFile)
+
+  # print license
+  cat(getLicense())
+  cat("\n") ## need this to begin newline
+
+  invisible(NULL)
 }

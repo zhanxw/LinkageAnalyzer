@@ -2,25 +2,30 @@ In this folder
 
 -----------------------------------------------------------------
 
-File: Aquamarine_QM_Report_continuous.csv
+Directory: single
 
-Description: This is the main input file for the package. Continuous phenotype scores are given.
-
------------------------------------------------------------------
-
-File: Aquamarine_QM_Report.csv
-
-Description: This is the main input file for the package. Categorical phenotypes are given.
+Description: R0491 (teeny) body weight screening. It's used to demonstrate single variant analysis.
+             For internal reference, this data set is from: torndao:/home/LinkageAnalysis/1008/R0491/body_weight.30226
 
 -----------------------------------------------------------------
 
-File: Aquamarine_QM_Report_G2.csv
+Directory: double
 
-Description: This is the optional input file containing G2 information.
+Description: R0491 (teeny) body weight screening. It's used to demonstrate double variant analysis.
+             For internal reference, this data set is from: tornado:/home/LinkageAnalysis/1008/R0491/body_weight.30226
 
 -----------------------------------------------------------------
 
+Directory: meta
 
-Folder: single
+Description: R0376, R0568, R0632 and R0650 MCMV quantification screening. It's used to demonstrate variant-based superpedigree analysis.
+             For internal reference, this data set is from: cobblepot2:/data/LinkageAnalysis/SuperPedigrees/SNP/4_130378043_C_G/mcmv.78946
 
-Description: This folder contains three sub-folders that have the analysis output of single_link. This folder is used for demonstration of single_link.
+-----------------------------------------------------------------
+
+Directory: gene
+
+Description: R0376, R0568, R0624, R0632 and R0650 MCMV quantification where null alleles and missense alleles are grouped. It's used to demonstrate gene-based superpedigree analysis.
+             For internal reference, this data set is from: tornado:/home/LinkageAnalysis/SuperPedigrees/gene/Snrnp40/mcmv.095.59470
+
+-----------------------------------------------------------------

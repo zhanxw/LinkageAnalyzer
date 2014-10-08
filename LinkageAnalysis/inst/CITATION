@@ -1,0 +1,13 @@
+## This may subject to change
+year <- sub("-.*", "", meta$Date)
+note <- sprintf("R package version %s", meta$Version)
+
+bibentry(bibtype = "Manual",
+                  title = "{LinkageAnalysis}: R package for identify causal mutations and access lethality in forward genetics experiments",
+                  author = c(person("Xiaowei", "Zhan"),
+                      person("Tao", "Wang"),
+                      person("Yang", "Xie"),
+                      person("Bruce", "Beutler")),
+                  year = year,
+                  note = note,
+                  url = "http://CRAN.R-project.org/package=LinkageAnalysis")

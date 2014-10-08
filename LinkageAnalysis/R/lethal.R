@@ -336,6 +336,7 @@ double.lethal.get.pvalue <- function(data) {
 #' Examine mother-offspring pair and fix mother's genotype by her offsprings.
 #' e.g. mom has VAR offsprings, mom genotype cannot be REF => mom must be HET
 #' @param pheno ped data
+#' @param geno.name specify genotype column headers
 crossCheckMotherGenotype <- function(pheno, geno.name = "gt") {
   mother <- NULL # bypass CRAN warning
   ## count mom's offspring phenotypes

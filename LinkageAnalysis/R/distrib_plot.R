@@ -46,6 +46,7 @@ plot.distribution <- function(pheno, pheno.name, main = "") {
   pheno$y <- pheno[, pheno.name]
   pheno$y <- as.numeric(pheno$y)
   ##pheno$pch <- rep_len(x = seq(6), length.out = nrow(pheno))
+  y <- NULL ## bypass CRAN check
   g <- ggplot(pheno, aes(x = gt, y = y, col = family)) +
     geom_point(position = position_jitter(width = 0.2)) +
       xlab("Genotype") + ylab("Phenotype") +

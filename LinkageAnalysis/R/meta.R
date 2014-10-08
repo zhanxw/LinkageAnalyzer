@@ -1,6 +1,6 @@
 #' Meta-analyze single variant in super pedigree
 #'
-#' Perform single analysis using multiple pedigrees
+#' Perform variant-base superpedigree analysis
 #'
 #' @param vcfFile genotype input file in VCF format
 #' @param pedFile pedigree file in PED format
@@ -25,17 +25,21 @@
 #' and distribution plots.
 #' @param transform.pheno Default is NULL. Use "log" if phenotypes need to log
 #' transformed.
+#' @param log.level Default WARN, but can be set from 'DEBUG', 'INFO', 'WARN'
+#' and 'ERROR'.
 #'
+#' @return a list of three values will be returned:
+#' the first one is returncode (0: success, non-zero: errors happened)
+#' the second one is message, when return is non-zero, message gives explanations
+#' the last one is analysis results.
 #' @export
 #' @examples
-#' vcfFile <-
-#'   system.file("extdata/R0359-R0360.vcf",package="LinkageAnalysis")
-#' pedFile <-
-#'   system.file("extdata/R0359-R0360.ped",package="LinkageAnalysis")
-#' pheno.name <- "raw"
-#' output <-
-#'   sub(pattern="R0359-R0360.vcf",replacement="output",x=vcfFile)
-#' meta.single.link(vcfFile, pedFile, pheno.name, output = output)
+#' path <- system.file("extdata/meta",package="LinkageAnalysis")
+#' vcfFile <- file.path(path, "4_130378043_C_G.mcmv.vcf")
+#' pedFile <- file.path(path, "4_130378043_C_G.mcmv.ped")
+#' pheno.name <- "log"
+#' output <- file.path(path, "output")
+#' ret <- meta.single.link(vcfFile, pedFile, pheno.name, output, test = "woG2", tail = "both", prefix="meta")
 meta.single.link <- function(vcfFile, ## a vector of list
                              pedFile, ## a vector of list
                              pheno.name, ## which phenotype to use
@@ -48,7 +52,7 @@ meta.single.link <- function(vcfFile, ## a vector of list
                              plot.it = TRUE,
                              transform.pheno = NULL,
                              log.level = 'WARN') {
-
+  collectUsage("meta.single.link")
   log.file <- filename(output, prefix)$log_file
   ret <- tryCatch(
       {
@@ -107,7 +111,7 @@ run.mixed.effect.alt.model <- function(isBinary, alt.model, pheno) {
       },
       warning = function(warn) {
         logwarn(paste0("Fit [ ", alt.model, " binary =", isBinary, " ] has warnings ", str(warn)))
-        msg <- as.character(last.warning)
+        msg <- as.character(get("last.warning", baseenv()))
         return(list(returncode = 1, message = msg, warning = warn, isBinary = isBinary, alt.model = alt.model))
       },
       error = function(err) {
@@ -572,7 +576,7 @@ meta.single.link.impl <- function(vcfFile, ## a vector of list
 
   end.time <- Sys.time()
   diff.time <- difftime(end.time, start.time, units = "secs")
-  msg <- (sprintf("meta_link() finished in %.3f seconds - [vcfFile=%s;pedFile=%s;pheno.name=%s;test=%s;detect=%s;tail=%s]",
+  msg <- (sprintf("meta.single.link() finished in %.3f seconds - [vcfFile=%s;pedFile=%s;pheno.name=%s;test=%s;detect=%s;tail=%s]",
                   diff.time,
                   vcfFile,
                   pedFile,

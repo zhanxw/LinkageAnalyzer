@@ -1,10 +1,13 @@
-TODO
-More comparison with old versions
-Revise documentations
+TODO:
+Automated comparison with old versions
 Add sex specific analysis
-Add teeny and snrnp40 as examples
-Maybe TODO
+Maybe TODO:
 * Add G3 counts: REF.G3, HET.G3, VAR.G3
+2.4.6
+* Add license
+* Enable usage collection
+* Revise documentations
+Add teeny and snrnp40 as examples
 2.4.5
 * Futher reduce logging and categorize logging messages
 2.4.4
