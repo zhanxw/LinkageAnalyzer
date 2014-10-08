@@ -4,10 +4,14 @@ Title: Identification of genotypes with statistically significant
     associations with phenotypes and lethality
 Version: 2.4.6
 Date: 2014-10-02
-Author: Tao Wang, Xiaowei Zhan, Yang Xie, Bruce Beutler
-Maintainer: Xiaowei Zhan <Xiaowei.Zhan@UTSouthwestern.edu>,
-    David Pratt <David.Pratt@UTSouthwestern.edu>,
-    Stephen Lyon <Stephen.Lyon@UTSouthwestern.edu>
+Authors@R: c(person("Xiaowei", "Zhan", role = c("aut", "cph", "cre"), email =
+    "Xiaowei.Zhan@UTSouthwestern.edu"), person("Tao", "Wang", role = c("aut",
+    "cph", "cre"), email = "Tao.Wang@UTSouthwestern.edu"), person("Yang",
+    "Xie", role = c("aut", "cph"), email = "Yange.Xie@UTSouthwestern.edu"),
+    person("Bruce", "Beutler", role = c("aut", "cph"), email =
+    "Bruce.Beutler@UTSouthwestern.edu"), person("David", "Pratt", role =
+    c("ctb"), email = "David.Pratt@UTSouthwestern.edu"), person("Steven",
+    "Lyon", role = c("ctb"), email = "Stephen.Lyon@UTSouthwestern.edu"))
 Depends:
     R (>= 3.0.1),
     ggplot2,

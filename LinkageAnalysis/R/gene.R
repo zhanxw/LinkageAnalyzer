@@ -39,7 +39,8 @@
 #' pedFile <- file.path(path, "Snrnp40.mcmv.ped")
 #' pheno.name <- "log"
 #' output <- file.path(path, "output")
-#' ret <- gene.single.link(vcfFile, pedFile, pheno.name, output, test = "woG2", tail = "both", prefix="gene")
+#' ret <- gene.single.link(vcfFile, pedFile, pheno.name, output,
+#'                         test = "woG2", tail = "both", prefix="gene")
 gene.single.link <- function(vcfFile, ## a vector of list
                              pedFile, ## a vector of list
                              pheno.name, ## which phenotype to use

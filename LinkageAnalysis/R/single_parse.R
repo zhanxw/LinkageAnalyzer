@@ -22,12 +22,13 @@
 #' log file will also be generated.
 #' @return No return value.
 #' @seealso \code{\link{single.link}}
-#' @export
 #' @examples
-#' dir=system.file("extdata/single",package="LinkageAnalysis")
-#' single_parse(dir=dir,runs=c("raw_continuous_woG2",
-#'                             "raw_continuous_wG2",
-#'                             "autoBinary_norm_continuous_woG2"),output=dir)
+#' \dontrun{
+#'  dir <- system.file("extdata/single/output",package="LinkageAnalysis")
+#'  single_parse(dir=dir,runs=c("raw_continuous_woG2",
+#'                              "raw_continuous_wG2",
+#'                              "autoBinary_norm_continuous_woG2"),output=dir)
+#' }
 single_parse <- function(dir = ".", runs = c(), output = ".", silent = FALSE, prefix = "") {
   ######### preparations ##################
   filenames <- filename(output, prefix)

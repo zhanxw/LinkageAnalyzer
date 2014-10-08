@@ -39,7 +39,8 @@
 #' pedFile <- file.path(path, "4_130378043_C_G.mcmv.ped")
 #' pheno.name <- "log"
 #' output <- file.path(path, "output")
-#' ret <- meta.single.link(vcfFile, pedFile, pheno.name, output, test = "woG2", tail = "both", prefix="meta")
+#' ret <- meta.single.link(vcfFile, pedFile, pheno.name, output,
+#'                         test = "woG2", tail = "both", prefix="meta")
 meta.single.link <- function(vcfFile, ## a vector of list
                              pedFile, ## a vector of list
                              pheno.name, ## which phenotype to use

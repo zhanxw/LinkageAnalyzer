@@ -66,7 +66,8 @@
 #' pedFile <- file.path(path, "R0491_body_weight.ped")
 #' pheno.name <- "weight"
 #' output <- file.path(path, "output")
-#' ret <- double.link(vcfFile, pedFile, pheno.name, output, test = "woG2", tail = "both", prefix="double")
+#' ret <- double.link(vcfFile, pedFile, pheno.name, output,
+#'                    test = "woG2", tail = "both", prefix="double")
 double.link <- function(vcfFile,
                         pedFile,
                         pheno.name,

@@ -38,10 +38,12 @@ parsed and summarized into a .csv file to be put under \code{output}. A .txt
 log file will also be generated.
 }
 \examples{
-dir=system.file("extdata/single",package="LinkageAnalysis")
-single_parse(dir=dir,runs=c("raw_continuous_woG2",
-                            "raw_continuous_wG2",
-                            "autoBinary_norm_continuous_woG2"),output=dir)
+\dontrun{
+ dir <- system.file("extdata/single/output",package="LinkageAnalysis")
+ single_parse(dir=dir,runs=c("raw_continuous_woG2",
+                             "raw_continuous_wG2",
+                             "autoBinary_norm_continuous_woG2"),output=dir)
+}
 }
 \seealso{
 \code{\link{single.link}}
