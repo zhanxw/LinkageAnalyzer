@@ -1,3 +1,18 @@
+##  ====================================================================================================================================================
+##  |  LinkageAnalysis License                                                                                                                         |
+##  |  ----------------------------------------------------------------------------------------------------------------------------------------------  |
+##  |  a.   Copyright ©2014, The University of Texas Southwestern Medical Center.  All rights reserved; and                                            |
+##  |  b.   This software and any related documentation constitutes published and/or unpublished works and may contain valuable trade secrets and      |
+##  |       proprietary information belonging to The University of Texas Southwestern Medical Center (UT SOUTHWESTERN).  None of the foregoing         |
+##  |       material may be copied, duplicated or disclosed without the express written permission of UT SOUTHWESTERN.  IN NO EVENT SHALL UT           |
+##  |       SOUTHWESTERN BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING   |
+##  |       OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF UT SOUTHWESTERN HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.         |
+##  |       UT SOUTHWESTERN SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND        |
+##  |       FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS PROVIDED "AS IS". UT          |
+##  |       SOUTHWESTERN HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.                                   |
+##  |  c.   This software contains copyrighted materials from R-package, ggplot2, gplots, gridExtra, lme4, logging, mclust, plyr and stringr.          |
+##  |       Corresponding terms and conditions apply.                                                                                                  |
+##  ====================================================================================================================================================
 # @param gt, when it's character, this function converts to numerical values
 # representation according to type FAILED, FALSE, and other types will be
 # converted to NA
@@ -26,7 +41,7 @@ convert_gt <- function(gt, type) {
   ## conversion
   if (any(gt > 2 | gt < 0, na.rm = TRUE)) {
     cat("GT = ", gt, "\n")
-    stop("some gt is not between [0, 2]")
+    stop("some gt is out of range [0, 2]")
   }
   if (type == "additive") {
     # do nothing
@@ -183,7 +198,7 @@ snapshot <- function(call.func.name, fn, force = FALSE) {
     if (file.exists(fn)) {
       load(fn, envir = parent.frame(2), verbose = TRUE)
     } else {
-      cat(fn, " does not exists, skipped.\n")
+      logdebug(fn, " does not exists, skipped.\n")
     }
     return(0)
   }
@@ -193,8 +208,8 @@ snapshot <- function(call.func.name, fn, force = FALSE) {
     }
 
     wd <- getwd()
-    cat("DEBUG: function call = ", call.func.name, "\n")
-    cat("DEBUG: current variables saved to: ", fn, "\n")
+    logdebug("function call = ", call.func.name, "\n")
+    logdebug("current variables saved to: ", fn, "\n")
     env <- parent.frame()
     save(list = ls(envir=env), file = fn, envir = env)
   }
@@ -269,16 +284,18 @@ getLicense <- function() {
 }
 
 ## send analysis type and current version to remote usage collection server
-collectUsage <- function(type) {
+collectUsage <- function(type, track = FALSE) {
   # send a customized url
-  ver <- packageVersion("LinkageAnalysis")
-  url <- sprintf("http://zhanxw.com/LinkageAnalysis/count.php?version=%s&type=%s", ver, type)
-  tmpFile <- tempfile()
-  ret <- tryCatch({
+  if (track) {
+    ver <- packageVersion("LinkageAnalysis")
+    url <- sprintf("http://zhanxw.com/LinkageAnalysis/count.php?version=%s&type=%s", ver, type)
+    tmpFile <- tempfile()
+    ret <- tryCatch({
       download.file(url, tmpFile, quiet = TRUE)
       readLines(tmpFile)
     }, error = function(e) {NULL})
-  unlink(tmpFile)
+    unlink(tmpFile)
+  }
 
   # print license
   cat(getLicense())
