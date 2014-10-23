@@ -168,13 +168,13 @@ source.all.file <- function(dir = ".") {
   for (i in fn) {
     source(i)
   }
-  ## if (TRUE) {
-  ##   library(stringr)
-  ##   library(plyr)
-  ##   library(ggplot2)
-  ##   library(gplots)
-  ##   library(lme4)
-  ## }
+  if (TRUE) {
+    library(stringr)
+    library(plyr)
+    library(ggplot2)
+    library(gplots)
+    library(lme4)
+  }
 }
 if (FALSE) {
   source.all.file("~/test.run/LinkageAnalysis/R")

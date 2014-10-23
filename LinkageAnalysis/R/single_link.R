@@ -12,7 +12,7 @@
 ##  |       SOUTHWESTERN HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.                                   |
 ##  |  c.   This software contains copyrighted materials from R-package, ggplot2, gplots, gridExtra, lme4, logging, mclust, plyr and stringr.          |
 ##  |       Corresponding terms and conditions apply.                                                                                                  |
-##  ====================================================================================================================================================    
+##  ====================================================================================================================================================
 #' @title Statistical analysis for correlation with phenotype and lethality on a single locus
 #'
 #' @description

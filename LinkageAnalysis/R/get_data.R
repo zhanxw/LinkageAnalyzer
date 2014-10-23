@@ -12,7 +12,7 @@
 ##  |       SOUTHWESTERN HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.                                   |
 ##  |  c.   This software contains copyrighted materials from R-package, ggplot2, gplots, gridExtra, lme4, logging, mclust, plyr and stringr.          |
 ##  |       Corresponding terms and conditions apply.                                                                                                  |
-##  ====================================================================================================================================================    
+##  ====================================================================================================================================================
 #' this function reads the main data and the optional G2 genotype data if G2
 #' genotype data, the returned list will have an additional element
 #'
@@ -881,7 +881,7 @@ process.phenotype <- function(ped, pheno.name, detect) {
       tmp <- ped[,pheno.name]
       idx <- tmp %in% c(-9, 0)
       ped[idx, pheno.name] <- NA
-      ped[,pheno.name] <- factor(ped[,pheno.name], levels = c(1, 2), labels = c("AFFECTED", "UNAFFECTED"))
+      ped[,pheno.name] <- factor(ped[,pheno.name], levels = c(1, 2), labels = c("UNAFFECTED", "AFFECTED"))
     }
   }
   return(list(ped = ped))

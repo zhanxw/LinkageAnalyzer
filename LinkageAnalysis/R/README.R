@@ -12,7 +12,7 @@
 ##  |       SOUTHWESTERN HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.                                   |
 ##  |  c.   This software contains copyrighted materials from R-package, ggplot2, gplots, gridExtra, lme4, logging, mclust, plyr and stringr.          |
 ##  |       Corresponding terms and conditions apply.                                                                                                  |
-##  ====================================================================================================================================================    
+##  ====================================================================================================================================================
 #' Linkage Analysis package
 #'
 #' This package collects statistical analysis procedures to
@@ -23,7 +23,7 @@
 #'
 #' @importFrom gplots heatmap.2
 #' @importFrom mclust Mclust
-#' @import ggplot2 gridExtra logging lme4 plyr stringr
+#' @import ggplot2 gridExtra logging logistf lme4 plyr stringr
 #' @docType package
 #' @name LinkageAnalysis
 NULL

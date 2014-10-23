@@ -12,7 +12,7 @@
 ##  |       SOUTHWESTERN HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.                                   |
 ##  |  c.   This software contains copyrighted materials from R-package, ggplot2, gplots, gridExtra, lme4, logging, mclust, plyr and stringr.          |
 ##  |       Corresponding terms and conditions apply.                                                                                                  |
-##  ====================================================================================================================================================    
+##  ====================================================================================================================================================
 #' Meta-analyze single variant in super pedigree
 #'
 #' Perform variant-base superpedigree analysis
@@ -192,10 +192,33 @@ run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno, pheno.name, t
     ## try alt model
     if (isBinary) {
       reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
-      alt <- glm(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
+      alt <- tryCatch({
+        alt <- glm(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
+      }, warning = function(x) {x}, error = function(x) {x})
+
+      ## when there are separation problems, use firth regression
+      if ("warning" %in% class(alt) &&
+          !is.null(alt$message) &&
+          alt$message == "glm.fit: fitted probabilities numerically 0 or 1 occurred") {
+        logwarn("Refit using Firth regression")
+        alt <- logistf(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
+        alt <- with(alt, cbind(coefficients, prob))
+        stopifnot(colnames(alt)[2] == "prob")
+        pval <- alt["gt", "prob"]
+        direction <- alt["gt", "coefficients"] > 0
+        if (!is.na(direction)) {
+          pval <- convert_tail(direction, pval, tail)
+          return(pval)
+        } else {
+          logwarn("Refit using logistf() failed, set pvalue to one.\n")
+          pval <- 1
+          return(pval)
+        }
+      }
     } else {
       alt <- lm(as.formula(reduced.model), data = reduced.pheno)
     }
+
     idx <- which(colnames(summary(alt)$coefficients) == "Pr(>|t|)" |
                  colnames(summary(alt)$coefficients) == "Pr(>|z|)")
     coef <- summary(alt)$coefficients

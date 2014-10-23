@@ -1,8 +1,13 @@
 TODO:
+Mht plot for G0' analysis
 Automated comparison with old versions
 Add sex specific analysis
 Maybe TODO:
 * Add G3 counts: REF.G3, HET.G3, VAR.G3
+2.4.9
+* Increase version number and fix installation warnings
+2.4.8
+* Support separation problem
 2.4.7
 * Turn off automatic version check
 * Turn off usage report
@@ -10,7 +15,7 @@ Maybe TODO:
 * Add license
 * Enable usage collection
 * Revise documentations
-Add teeny and snrnp40 as examples
+* Add teeny and snrnp40 as examples
 2.4.5
 * Futher reduce logging and categorize logging messages
 2.4.4
