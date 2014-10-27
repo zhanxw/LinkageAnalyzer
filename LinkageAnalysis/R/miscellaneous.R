@@ -13,10 +13,31 @@
 ##  |  c.   This software contains copyrighted materials from R-package, ggplot2, gplots, gridExtra, lme4, logging, mclust, plyr and stringr.          |
 ##  |       Corresponding terms and conditions apply.                                                                                                  |
 ##  ====================================================================================================================================================
-# @param gt, when it's character, this function converts to numerical values
-# representation according to type FAILED, FALSE, and other types will be
-# converted to NA
-# @param gt, when it's numerics, then conversion is directly peformed
+
+##  ====================================================================================================================================================
+##  |  This file is part of LinkageAnalysis.													       |
+##  |																		       |
+##  |  LinkageAnalysis is free software: you can redistribute it and/or modify									       |
+##  |  it under the terms of the GNU General Public License as published by									       |
+##  |  the Free Software Foundation, either version 3 of the License, or									       |
+##  |  (at your option) any later version.													       |
+##  |																		       |
+##  |  LinkageAnalysis is distributed in the hope that it will be useful,									       |
+##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
+##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
+##  |  GNU General Public License for more details.												       |
+##  |																		       |
+##  |  You should have received a copy of the GNU General Public License									       |
+##  |  along with LinkageAnalysis.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  ====================================================================================================================================================
+
+
+#' @title Convert genotype to numeric values between 0.0 and 2.0
+#' @param gt when it's character, this function converts to numerical values
+#' representation according to type FAILED, FALSE, and other types will be
+#' converted to NA; when it's numerics, then conversion is directly peformed
+#' @param type must be one of the three: "additive", "recessive" and "dominant"
+#' @keywords internal
 convert_gt <- function(gt, type) {
   if (!type %in% c("additive", "recessive", "dominant") ) {
     cat("Unrecognized type: ", type, "\n")
@@ -162,6 +183,7 @@ pretty_num <- function(x) {
 #' re-source all .R files
 #'
 #' @param dir directory name
+#' @keywords internal
 source.all.file <- function(dir = ".") {
   fn <- list.files(path = dir, pattern = ".R$")
   fn <- normalizePath(file.path(dir, fn))

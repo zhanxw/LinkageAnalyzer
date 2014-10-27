@@ -1,9 +1,5 @@
-TODO:
-Mht plot for G0' analysis
-Automated comparison with old versions
-Add sex specific analysis
-Maybe TODO:
-* Add G3 counts: REF.G3, HET.G3, VAR.G3
+2.5.0
+* Remove single_parse
 2.4.9
 * Increase version number and fix installation warnings
 2.4.8

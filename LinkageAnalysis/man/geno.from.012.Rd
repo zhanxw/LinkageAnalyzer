@@ -14,4 +14,5 @@ character vector
 \description{
 Convert 0,1,2,NA to "REF", "HET", "ALT", "FAIL"
 }
+\keyword{internal}
 

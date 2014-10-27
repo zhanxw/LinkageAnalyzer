@@ -12,7 +12,26 @@
 ##  |       SOUTHWESTERN HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.                                   |
 ##  |  c.   This software contains copyrighted materials from R-package, ggplot2, gplots, gridExtra, lme4, logging, mclust, plyr and stringr.          |
 ##  |       Corresponding terms and conditions apply.                                                                                                  |
-##  ====================================================================================================================================================    
+##  ====================================================================================================================================================
+
+##  ====================================================================================================================================================
+##  |  This file is part of LinkageAnalysis.													       |
+##  |																		       |
+##  |  LinkageAnalysis is free software: you can redistribute it and/or modify									       |
+##  |  it under the terms of the GNU General Public License as published by									       |
+##  |  the Free Software Foundation, either version 3 of the License, or									       |
+##  |  (at your option) any later version.													       |
+##  |																		       |
+##  |  LinkageAnalysis is distributed in the hope that it will be useful,									       |
+##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
+##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
+##  |  GNU General Public License for more details.												       |
+##  |																		       |
+##  |  You should have received a copy of the GNU General Public License									       |
+##  |  along with LinkageAnalysis.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  ====================================================================================================================================================
+
+
 # G1 female is REF, G1 male is HET 1) Without G2 data G2 female (offspring) is
 # REF/HET with 50% probability G2 male is HET (the same as G1 male)
 # REF:HET:VAR=3:4:1 2) if G2 mother is REF, REF:HET:VAR=1:1:0 3) if G2 mother is
@@ -352,6 +371,7 @@ double.lethal.get.pvalue <- function(data) {
 #' e.g. mom has VAR offsprings, mom genotype cannot be REF => mom must be HET
 #' @param pheno ped data
 #' @param geno.name specify genotype column headers
+#' @keywords internal
 crossCheckMotherGenotype <- function(pheno, geno.name = "gt") {
   mother <- NULL # bypass CRAN warning
   ## count mom's offspring phenotypes

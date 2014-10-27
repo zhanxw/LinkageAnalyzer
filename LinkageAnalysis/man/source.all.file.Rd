@@ -11,4 +11,5 @@ source.all.file(dir = ".")
 \description{
 re-source all .R files
 }
+\keyword{internal}
 

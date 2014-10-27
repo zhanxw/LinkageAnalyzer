@@ -20,4 +20,5 @@ NULL when criitical error
 \description{
 this function reads the main data
 }
+\keyword{internal}
 

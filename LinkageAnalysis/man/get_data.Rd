@@ -48,4 +48,5 @@ a list containing:
 this function reads the main data and the optional G2 genotype data if G2
 genotype data, the returned list will have an additional element
 }
+\keyword{internal}
 

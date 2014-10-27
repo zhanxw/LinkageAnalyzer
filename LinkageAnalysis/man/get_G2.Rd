@@ -19,4 +19,5 @@ data: data loaded
 \description{
 function to read G2 mice genotypes
 }
+\keyword{internal}
 

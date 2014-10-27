@@ -15,4 +15,5 @@ crossCheckMotherGenotype(pheno, geno.name = "gt")
 Examine mother-offspring pair and fix mother's genotype by her offsprings.
 e.g. mom has VAR offsprings, mom genotype cannot be REF => mom must be HET
 }
+\keyword{internal}
 

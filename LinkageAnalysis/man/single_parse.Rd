@@ -48,4 +48,5 @@ log file will also be generated.
 \seealso{
 \code{\link{single.link}}
 }
+\keyword{internal}
 

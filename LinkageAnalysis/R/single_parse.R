@@ -12,7 +12,26 @@
 ##  |       SOUTHWESTERN HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.                                   |
 ##  |  c.   This software contains copyrighted materials from R-package, ggplot2, gplots, gridExtra, lme4, logging, mclust, plyr and stringr.          |
 ##  |       Corresponding terms and conditions apply.                                                                                                  |
-##  ====================================================================================================================================================    
+##  ====================================================================================================================================================
+
+##  ====================================================================================================================================================
+##  |  This file is part of LinkageAnalysis.													       |
+##  |																		       |
+##  |  LinkageAnalysis is free software: you can redistribute it and/or modify									       |
+##  |  it under the terms of the GNU General Public License as published by									       |
+##  |  the Free Software Foundation, either version 3 of the License, or									       |
+##  |  (at your option) any later version.													       |
+##  |																		       |
+##  |  LinkageAnalysis is distributed in the hope that it will be useful,									       |
+##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
+##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
+##  |  GNU General Public License for more details.												       |
+##  |																		       |
+##  |  You should have received a copy of the GNU General Public License									       |
+##  |  along with LinkageAnalysis.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  ====================================================================================================================================================
+
+
 #' @title Parse the analysis results of multiple runs of single.link
 #'
 #' @description
@@ -37,6 +56,7 @@
 #' log file will also be generated.
 #' @return No return value.
 #' @seealso \code{\link{single.link}}
+#' @keywords internal
 #' @examples
 #' \dontrun{
 #'  dir <- system.file("extdata/single/output",package="LinkageAnalysis")

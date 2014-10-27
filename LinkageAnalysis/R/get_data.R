@@ -13,6 +13,25 @@
 ##  |  c.   This software contains copyrighted materials from R-package, ggplot2, gplots, gridExtra, lme4, logging, mclust, plyr and stringr.          |
 ##  |       Corresponding terms and conditions apply.                                                                                                  |
 ##  ====================================================================================================================================================
+
+##  ====================================================================================================================================================
+##  |  This file is part of LinkageAnalysis.													       |
+##  |																		       |
+##  |  LinkageAnalysis is free software: you can redistribute it and/or modify									       |
+##  |  it under the terms of the GNU General Public License as published by									       |
+##  |  the Free Software Foundation, either version 3 of the License, or									       |
+##  |  (at your option) any later version.													       |
+##  |																		       |
+##  |  LinkageAnalysis is distributed in the hope that it will be useful,									       |
+##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
+##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
+##  |  GNU General Public License for more details.												       |
+##  |																		       |
+##  |  You should have received a copy of the GNU General Public License									       |
+##  |  along with LinkageAnalysis.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  ====================================================================================================================================================
+
+
 #' this function reads the main data and the optional G2 genotype data if G2
 #' genotype data, the returned list will have an additional element
 #'
@@ -46,6 +65,7 @@
 #'       Amplicon: char vec
 #'     n:  # of genes
 #'     obs:  # of mice
+#' @keywords internal
 get_data <- function(main_file = "", G2 = "", log_file, detect, transform.pheno = NULL) {
   snapshot("get_data", "get_data.Rdata")
   data <- get_main(main_file, log_file, detect, transform.pheno)
@@ -79,6 +99,7 @@ get_data <- function(main_file = "", G2 = "", log_file, detect, transform.pheno 
 #' returncode: non-zero when criitical error
 #' message: related to the function running status
 #' data: data loaded
+#' @keywords internal
 get_G2 <- function(file = "", log_file) {
   # read G2 genotype data
   raw <- read.csv(file, header = T, stringsAsFactor = F)
@@ -138,6 +159,7 @@ get_G2 <- function(file = "", log_file) {
 #' @param transform.pheno "log" apply log transformation, or NULL means do nothing
 #'
 #' @return NULL when criitical error
+#' @keywords internal
 get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
   # read raw data and check format
   raw <- read.csv(main_file, header = F, stringsAsFactor = F)
@@ -151,7 +173,7 @@ get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
   raw <- raw[!raw[, 1] == "", ]
   raw <- raw[, raw[1, ] != "" & (!apply(raw, 2, function(x) {
     all(is.na(x))
-  }))]
+OB  }))]
   raw <- raw[!apply(raw[, -c(1:3), drop = FALSE], 1, function(x) all(x == "FALSE")), ]  # delete all false ones
   raw <- raw[, c(rep(TRUE, 3), raw[3,-seq(3)] != "na")] ## kick out missing phenotypes
   # check names
@@ -623,6 +645,7 @@ get.vcf <- function(vcfFile, log_file) {
 #' @param x numeric vector
 #'
 #' @return character vector
+#' @keywords internal
 geno.from.012 <- function(x) {
   ret <- x
   ret[x==0] <- "REF"
@@ -692,7 +715,6 @@ vcf.delete.sample.by.index <- function(vcf, index) {
 #' Summarize vcf data
 #'
 #' @param vcf vcf data
-#'
 vcf.summarize <- function(vcf) {
   nvar <- length(vcf$CHROM)
   nsample <- ncol(vcf$GT)

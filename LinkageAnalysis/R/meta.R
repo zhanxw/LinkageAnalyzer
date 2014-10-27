@@ -13,6 +13,25 @@
 ##  |  c.   This software contains copyrighted materials from R-package, ggplot2, gplots, gridExtra, lme4, logging, mclust, plyr and stringr.          |
 ##  |       Corresponding terms and conditions apply.                                                                                                  |
 ##  ====================================================================================================================================================
+
+##  ====================================================================================================================================================
+##  |  This file is part of LinkageAnalysis.													       |
+##  |																		       |
+##  |  LinkageAnalysis is free software: you can redistribute it and/or modify									       |
+##  |  it under the terms of the GNU General Public License as published by									       |
+##  |  the Free Software Foundation, either version 3 of the License, or									       |
+##  |  (at your option) any later version.													       |
+##  |																		       |
+##  |  LinkageAnalysis is distributed in the hope that it will be useful,									       |
+##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
+##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
+##  |  GNU General Public License for more details.												       |
+##  |																		       |
+##  |  You should have received a copy of the GNU General Public License									       |
+##  |  along with LinkageAnalysis.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  ====================================================================================================================================================
+
+
 #' Meta-analyze single variant in super pedigree
 #'
 #' Perform variant-base superpedigree analysis
@@ -157,6 +176,7 @@ run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno, pheno.name, t
 
   ## check if the model can be fit
   model.fittable <- TRUE
+  pval <- NA
   while (model.fittable) {
     ## check sample size
     if (nrow(reduced.pheno) == 0) {
@@ -194,7 +214,7 @@ run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno, pheno.name, t
       reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
       alt <- tryCatch({
         alt <- glm(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
-      }, warning = function(x) {x}, error = function(x) {x})
+      }, warning = function(x) { x }, error = function(x) { x })
 
       ## when there are separation problems, use firth regression
       if ("warning" %in% class(alt) &&
@@ -215,8 +235,20 @@ run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno, pheno.name, t
           return(pval)
         }
       }
+
+      ## check error
+      if (! "glm" %in% alt ) {
+        pval <- 1
+        return(pval)
+      }
     } else {
       alt <- lm(as.formula(reduced.model), data = reduced.pheno)
+
+      ## check error
+      if (! "lm" %in% alt ) {
+        pval <- 1
+        return(pval)
+      }
     }
 
     idx <- which(colnames(summary(alt)$coefficients) == "Pr(>|t|)" |
@@ -229,8 +261,8 @@ run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno, pheno.name, t
         pval <- convert_tail(direction, pval, tail)
       }
     } else{
-      ## glm fitting failed, so set pval to one
-      logwarn("Refit using glm() failed, set pvalue to one.\n")
+      ## fitting failed, so set pval to one
+      logwarn("Refit using lm()/glm()/logsitf() failed, set pvalue to one.\n")
       pval <- 1
     }
     break
@@ -294,7 +326,7 @@ countModelParam <- function(model, pheno, isBinary, has.random.effect) {
 
 fit.null.model <- function(null.model, pheno, isBinary, has.random.effect) {
   loginfo("Fit null model: %s", null.model)
-  snapshot("fit.null.model", "fit.null.model.Rdata")
+  ## snapshot("fit.null.model", "fit.null.model.Rdata")
   if (isResponseContant(null.model, pheno)) {
     return(list(returncode = 1, message = "Response is constant - cannot fit the model"))
   }
