@@ -1,5 +1,7 @@
 2.5.0
 * Remove single_parse
+* Add GPLv3
+* Fix issue 171 and 197
 2.4.9
 * Increase version number and fix installation warnings
 2.4.8

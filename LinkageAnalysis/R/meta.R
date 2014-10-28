@@ -15,20 +15,20 @@
 ##  ====================================================================================================================================================
 
 ##  ====================================================================================================================================================
-##  |  This file is part of LinkageAnalysis.													       |
-##  |																		       |
-##  |  LinkageAnalysis is free software: you can redistribute it and/or modify									       |
-##  |  it under the terms of the GNU General Public License as published by									       |
-##  |  the Free Software Foundation, either version 3 of the License, or									       |
-##  |  (at your option) any later version.													       |
-##  |																		       |
-##  |  LinkageAnalysis is distributed in the hope that it will be useful,									       |
-##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
-##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
-##  |  GNU General Public License for more details.												       |
-##  |																		       |
-##  |  You should have received a copy of the GNU General Public License									       |
-##  |  along with LinkageAnalysis.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  |  This file is part of LinkageAnalysis.                                                                                                           |
+##  |                                                                                                                                                  |
+##  |  LinkageAnalysis is free software: you can redistribute it and/or modify                                                                         |
+##  |  it under the terms of the GNU General Public License as published by                                                                            |
+##  |  the Free Software Foundation, either version 3 of the License, or                                                                               |
+##  |  (at your option) any later version.                                                                                                             |
+##  |                                                                                                                                                  |
+##  |  LinkageAnalysis is distributed in the hope that it will be useful,                                                                              |
+##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of                                                                                  |
+##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                                                                                   |
+##  |  GNU General Public License for more details.                                                                                                    |
+##  |                                                                                                                                                  |
+##  |  You should have received a copy of the GNU General Public License                                                                               |
+##  |  along with LinkageAnalysis.  If not, see <http://www.gnu.org/licenses/>.                                                                        |
 ##  ====================================================================================================================================================
 
 
@@ -211,15 +211,21 @@ run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno, pheno.name, t
 
     ## try alt model
     if (isBinary) {
-      reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
+      if (is.factor(reduced.pheno[, pheno.name])) {
+        ## convert AFFECTED/UNAFFECTED to 0/1
+        reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name]) - 1
+      } else {
+        reduced.pheno[, pheno.name] <- as.numeric(reduced.pheno[, pheno.name])
+      }
       alt <- tryCatch({
         alt <- glm(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
       }, warning = function(x) { x }, error = function(x) { x })
 
       ## when there are separation problems, use firth regression
-      if ("warning" %in% class(alt) &&
-          !is.null(alt$message) &&
-          alt$message == "glm.fit: fitted probabilities numerically 0 or 1 occurred") {
+      if ((inherits(alt, "warning") &&
+             !is.null(alt$message) &&
+               alt$message == "glm.fit: fitted probabilities numerically 0 or 1 occurred") ||
+          (inherits(alt, "glm") && vcov(alt)["gt", "gt"] > 1000)) {
         logwarn("Refit using Firth regression")
         alt <- logistf(as.formula(reduced.model), data = reduced.pheno, family = "binomial")
         alt <- with(alt, cbind(coefficients, prob))
@@ -237,15 +243,20 @@ run.fixed.effect.alt.model <- function(isBinary, alt.model, pheno, pheno.name, t
       }
 
       ## check error
-      if (! "glm" %in% alt ) {
+      if (inherits(alt, "error") && !is.null(alt$message)) {
+        logerror(alt$message)
+      }
+      if (! inherits(alt, "glm")) {
         pval <- 1
         return(pval)
       }
     } else {
       alt <- lm(as.formula(reduced.model), data = reduced.pheno)
-
       ## check error
-      if (! "lm" %in% alt ) {
+      if (inherits(alt, "error") && !is.null(alt$message)) {
+        logerror(alt$message)
+      }
+      if (! inherits(alt, "lm")) {
         pval <- 1
         return(pval)
       }

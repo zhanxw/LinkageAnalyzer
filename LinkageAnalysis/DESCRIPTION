@@ -3,7 +3,7 @@ Type: Package
 Title: Identification of genotypes with statistically significant
         associations with phenotypes and lethality
 Version: 2.5.0
-Date: 2014-10-02
+Date: 2014-10-28
 Authors@R: c(person("Xiaowei", "Zhan", role = c("aut", "cph", "cre"), email =
     "Xiaowei.Zhan@UTSouthwestern.edu"), person("Tao", "Wang", role = c("aut",
     "cph", "cre"), email = "Tao.Wang@UTSouthwestern.edu"), person("Yang",

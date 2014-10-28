@@ -10,4 +10,4 @@ bibentry(bibtype = "Manual",
                       person("Bruce", "Beutler")),
                   year = year,
                   note = note,
-                  url = "http://CRAN.R-project.org/package=LinkageAnalysis")
+                  url = "http://mutagenetix.utsouthwestern.edu/linkage_analysis")
