@@ -2,7 +2,7 @@ Package: LinkageAnalysis
 Type: Package
 Title: Identification of genotypes with statistically significant
         associations with phenotypes and lethality
-Version: 2.5.0
+Version: 2.5.1
 Date: 2014-10-28
 Authors@R: c(person("Xiaowei", "Zhan", role = c("aut", "cph", "cre"), email =
     "Xiaowei.Zhan@UTSouthwestern.edu"), person("Tao", "Wang", role = c("aut",
@@ -19,7 +19,7 @@ Description: This package collects statistical analysis procedures to
     lethality for single gene and a pair of genes.
 License: file LICENSE
 Copyright: GPL-3
-Packaged: 2014-10-27 20:55:21 UTC; zhanxw
+Packaged: 2014-10-28 20:55:21 UTC; zhanxw
 Author: Xiaowei Zhan [aut, cph, cre],
   Tao Wang [aut, cph, cre],
   Yang Xie [aut, cph],

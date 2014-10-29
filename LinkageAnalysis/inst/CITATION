@@ -10,4 +10,4 @@ bibentry(bibtype = "Manual",
                       person("Bruce", "Beutler")),
                   year = year,
                   note = note,
-                  url = "http://mutagenetix.utsouthwestern.edu/linkage_analysis")
+                  url = "http://mutagenetix.utsouthwestern.edu/linkage_analysis/la_citation.cfm")
