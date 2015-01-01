@@ -1,5 +1,5 @@
 ##  ====================================================================================================================================================
-##  |  LinkageAnalysis License                                                                                                                         |
+##  |  LinkageAnalyzer Copyright                                                                                                                       |
 ##  |  ----------------------------------------------------------------------------------------------------------------------------------------------  |
 ##  |  a.   Copyright ©2014, The University of Texas Southwestern Medical Center.  All rights reserved; and                                            |
 ##  |  b.   This software and any related documentation constitutes published and/or unpublished works and may contain valuable trade secrets and      |
@@ -15,20 +15,20 @@
 ##  ====================================================================================================================================================    
 
 ##  ====================================================================================================================================================
-##  |  This file is part of LinkageAnalysis.													       |
+##  |  This file is part of LinkageAnalyzer.													       |
 ##  |																		       |
-##  |  LinkageAnalysis is free software: you can redistribute it and/or modify									       |
+##  |  LinkageAnalyzer is free software: you can redistribute it and/or modify									       |
 ##  |  it under the terms of the GNU General Public License as published by									       |
 ##  |  the Free Software Foundation, either version 3 of the License, or									       |
 ##  |  (at your option) any later version.													       |
 ##  |																		       |
-##  |  LinkageAnalysis is distributed in the hope that it will be useful,									       |
+##  |  LinkageAnalyzer is distributed in the hope that it will be useful,									       |
 ##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
 ##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
 ##  |  GNU General Public License for more details.												       |
 ##  |																		       |
 ##  |  You should have received a copy of the GNU General Public License									       |
-##  |  along with LinkageAnalysis.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  |  along with LinkageAnalyzer.  If not, see <http://www.gnu.org/licenses/>.									       |
 ##  ====================================================================================================================================================
 
 
@@ -68,7 +68,7 @@
 #' the last one is analysis results.
 #' @export
 #' @examples
-#' path <- system.file("extdata/gene",package="LinkageAnalysis")
+#' path <- system.file("extdata/gene",package="LinkageAnalyzer")
 #' vcfFile <- file.path(path, "Snrnp40.mcmv.vcf")
 #' pedFile <- file.path(path, "Snrnp40.mcmv.ped")
 #' pheno.name <- "log"
@@ -166,7 +166,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
 
   ## record running environment
   wd <- getwd()
-  loginfo(paste("Version:", packageVersion("LinkageAnalysis")))
+  loginfo(paste("Version:", packageVersion("LinkageAnalyzer")))
   loginfo(paste("Date:", Sys.time()))
   loginfo(paste("Host:", Sys.info()["nodename"]))
   loginfo(paste("Call:", deparse(sys.status()$sys.calls[[1]], width.cutoff = 500L)))

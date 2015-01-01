@@ -1,5 +1,5 @@
 ##  ====================================================================================================================================================
-##  |  LinkageAnalysis License                                                                                                                         |
+##  |  LinkageAnalyzer Copyright                                                                                                                       |
 ##  |  ----------------------------------------------------------------------------------------------------------------------------------------------  |
 ##  |  a.   Copyright ©2014, The University of Texas Southwestern Medical Center.  All rights reserved; and                                            |
 ##  |  b.   This software and any related documentation constitutes published and/or unpublished works and may contain valuable trade secrets and      |
@@ -15,20 +15,20 @@
 ##  ====================================================================================================================================================
 
 ##  ====================================================================================================================================================
-##  |  This file is part of LinkageAnalysis.                                                                                                           |
+##  |  This file is part of LinkageAnalyzer.                                                                                                           |
 ##  |                                                                                                                                                  |
-##  |  LinkageAnalysis is free software: you can redistribute it and/or modify                                                                         |
+##  |  LinkageAnalyzer is free software: you can redistribute it and/or modify                                                                         |
 ##  |  it under the terms of the GNU General Public License as published by                                                                            |
 ##  |  the Free Software Foundation, either version 3 of the License, or                                                                               |
 ##  |  (at your option) any later version.                                                                                                             |
 ##  |                                                                                                                                                  |
-##  |  LinkageAnalysis is distributed in the hope that it will be useful,                                                                              |
+##  |  LinkageAnalyzer is distributed in the hope that it will be useful,                                                                              |
 ##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of                                                                                  |
 ##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                                                                                   |
 ##  |  GNU General Public License for more details.                                                                                                    |
 ##  |                                                                                                                                                  |
 ##  |  You should have received a copy of the GNU General Public License                                                                               |
-##  |  along with LinkageAnalysis.  If not, see <http://www.gnu.org/licenses/>.                                                                        |
+##  |  along with LinkageAnalyzer.  If not, see <http://www.gnu.org/licenses/>.                                                                        |
 ##  ====================================================================================================================================================
 
 
@@ -199,7 +199,7 @@ source.all.file <- function(dir = ".") {
   }
 }
 if (FALSE) {
-  source.all.file("~/test.run/LinkageAnalysis/R")
+  source.all.file("~/test.run/LinkageAnalyzer/R")
 }
 
 is.debug.mode <- function() {
@@ -298,7 +298,7 @@ reportError <- function(err){
 
 ## get license as a character vector of length 1, or NULL if failed
 getLicense <- function() {
-  license <- system.file("LICENSE", package = "LinkageAnalysis")
+  license <- system.file("LICENSE", package = "LinkageAnalyzer")
   if (file.exists(license)) {
     return(paste(readLines(license), collapse = '\n'))
   } else {
@@ -310,8 +310,8 @@ getLicense <- function() {
 collectUsage <- function(type, track = FALSE) {
   # send a customized url
   if (track) {
-    ver <- packageVersion("LinkageAnalysis")
-    url <- sprintf("http://zhanxw.com/LinkageAnalysis/count.php?version=%s&type=%s", ver, type)
+    ver <- packageVersion("LinkageAnalyzer")
+    url <- sprintf("http://zhanxw.com/LinkageAnalyzer/count.php?version=%s&type=%s", ver, type)
     tmpFile <- tempfile()
     ret <- tryCatch({
       download.file(url, tmpFile, quiet = TRUE)

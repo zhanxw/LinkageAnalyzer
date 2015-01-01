@@ -1,7 +1,7 @@
 Package: LinkageAnalyzer
 Type: Package
 Title: Identification of genotypes with statistically significant
-        associations with phenotypes and lethality
+    associations with phenotypes and lethality
 Version: 3.0.2
 Date: 2014-10-28
 Authors@R: c(person("Xiaowei", "Zhan", role = c("aut", "cph", "cre"), email =
@@ -12,8 +12,17 @@ Authors@R: c(person("Xiaowei", "Zhan", role = c("aut", "cph", "cre"), email =
     "Bruce.Beutler@UTSouthwestern.edu"), person("David", "Pratt", role =
     c("ctb"), email = "David.Pratt@UTSouthwestern.edu"), person("Steven",
     "Lyon", role = c("ctb"), email = "Stephen.Lyon@UTSouthwestern.edu"))
-Depends: R (>= 3.0.1), ggplot2, gplots, gridExtra, lme4 (>= 1.1.6),
-        logging, logistf, mclust, plyr, stringr
+Depends:
+    R (>= 3.0.1),
+    ggplot2,
+    gplots,
+    gridExtra,
+    lme4 (>= 1.1.6),
+    logging,
+    logistf,
+    mclust,
+    plyr,
+    stringr
 Description: This package collects statistical analysis procedures to
     access the significance of correlation between phenotype and homozygous
     lethality for single gene and a pair of genes.
@@ -21,10 +30,10 @@ License: GPL-3
 Copyright: file Copyright
 Packaged: 2014-10-28 20:55:21 UTC; zhanxw
 Author: Xiaowei Zhan [aut, cph, cre],
-  Tao Wang [aut, cph, cre],
-  Yang Xie [aut, cph],
-  Bruce Beutler [aut, cph],
-  David Pratt [ctb],
-  Steven Lyon [ctb]
+    Tao Wang [aut, cph, cre],
+    Yang Xie [aut, cph],
+    Bruce Beutler [aut, cph],
+    David Pratt [ctb],
+    Steven Lyon [ctb]
 Maintainer: Xiaowei Zhan <Xiaowei.Zhan@UTSouthwestern.edu>,
-  Tao Wang <Tao.Wang@UTSouthwestern.edu>
+    Tao Wang <Tao.Wang@UTSouthwestern.edu>

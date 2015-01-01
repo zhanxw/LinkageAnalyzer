@@ -1,5 +1,5 @@
 ##  ====================================================================================================================================================
-##  |  LinkageAnalysis License                                                                                                                         |
+##  |  LinkageAnalyzer Copyright                                                                                                                       |
 ##  |  ----------------------------------------------------------------------------------------------------------------------------------------------  |
 ##  |  a.   Copyright ©2014, The University of Texas Southwestern Medical Center.  All rights reserved; and                                            |
 ##  |  b.   This software and any related documentation constitutes published and/or unpublished works and may contain valuable trade secrets and      |
@@ -15,20 +15,20 @@
 ##  ====================================================================================================================================================
 
 ##  ====================================================================================================================================================
-##  |  This file is part of LinkageAnalysis.													       |
+##  |  This file is part of LinkageAnalyzer.													       |
 ##  |																		       |
-##  |  LinkageAnalysis is free software: you can redistribute it and/or modify									       |
+##  |  LinkageAnalyzer is free software: you can redistribute it and/or modify									       |
 ##  |  it under the terms of the GNU General Public License as published by									       |
 ##  |  the Free Software Foundation, either version 3 of the License, or									       |
 ##  |  (at your option) any later version.													       |
 ##  |																		       |
-##  |  LinkageAnalysis is distributed in the hope that it will be useful,									       |
+##  |  LinkageAnalyzer is distributed in the hope that it will be useful,									       |
 ##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
 ##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
 ##  |  GNU General Public License for more details.												       |
 ##  |																		       |
 ##  |  You should have received a copy of the GNU General Public License									       |
-##  |  along with LinkageAnalysis.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  |  along with LinkageAnalyzer.  If not, see <http://www.gnu.org/licenses/>.									       |
 ##  ====================================================================================================================================================
 
 
@@ -59,7 +59,7 @@
 #' @keywords internal
 #' @examples
 #' \dontrun{
-#'  dir <- system.file("extdata/single/output",package="LinkageAnalysis")
+#'  dir <- system.file("extdata/single/output",package="LinkageAnalyzer")
 #'  single_parse(dir=dir,runs=c("raw_continuous_woG2",
 #'                              "raw_continuous_wG2",
 #'                              "autoBinary_norm_continuous_woG2"),output=dir)
@@ -134,7 +134,7 @@ single_parse <- function(dir = ".", runs = c(), output = ".", silent = FALSE, pr
     write("", file = filenames$csv_file, append = TRUE)
   }
 
-  write(paste("LinkageAnalysis version:", packageVersion("LinkageAnalysis"), "\n"),
+  write(paste("LinkageAnalyzer version:", packageVersion("LinkageAnalyzer"), "\n"),
         file = filenames$csv_file, append = TRUE)
   write(paste("Analysis conducted at:", date(), "\n"), file = filenames$csv_file,
         append = TRUE)

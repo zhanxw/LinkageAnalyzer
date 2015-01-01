@@ -1,5 +1,5 @@
 ##  ====================================================================================================================================================
-##  |  LinkageAnalysis License                                                                                                                         |
+##  |  LinkageAnalyzer Copyright                                                                                                                       |
 ##  |  ----------------------------------------------------------------------------------------------------------------------------------------------  |
 ##  |  a.   Copyright ©2014, The University of Texas Southwestern Medical Center.  All rights reserved; and                                            |
 ##  |  b.   This software and any related documentation constitutes published and/or unpublished works and may contain valuable trade secrets and      |
@@ -15,20 +15,20 @@
 ##  ====================================================================================================================================================
 
 ##  ====================================================================================================================================================
-##  |  This file is part of LinkageAnalysis.													       |
-##  |																		       |
-##  |  LinkageAnalysis is free software: you can redistribute it and/or modify									       |
-##  |  it under the terms of the GNU General Public License as published by									       |
-##  |  the Free Software Foundation, either version 3 of the License, or									       |
-##  |  (at your option) any later version.													       |
-##  |																		       |
-##  |  LinkageAnalysis is distributed in the hope that it will be useful,									       |
-##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
-##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
-##  |  GNU General Public License for more details.												       |
-##  |																		       |
-##  |  You should have received a copy of the GNU General Public License									       |
-##  |  along with LinkageAnalysis.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  |  This file is part of LinkageAnalyzer.                                                                                                           |
+##  |                                                                                                                                                  |
+##  |  LinkageAnalyzer is free software: you can redistribute it and/or modify                                                                         |
+##  |  it under the terms of the GNU General Public License as published by                                                                            |
+##  |  the Free Software Foundation, either version 3 of the License, or                                                                               |
+##  |  (at your option) any later version.                                                                                                             |
+##  |                                                                                                                                                  |
+##  |  LinkageAnalyzer is distributed in the hope that it will be useful,                                                                              |
+##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of                                                                                  |
+##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                                                                                   |
+##  |  GNU General Public License for more details.                                                                                                    |
+##  |                                                                                                                                                  |
+##  |  You should have received a copy of the GNU General Public License                                                                               |
+##  |  along with LinkageAnalyzer.  If not, see <http://www.gnu.org/licenses/>.                                                                        |
 ##  ====================================================================================================================================================
 
 
