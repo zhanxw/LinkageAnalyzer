@@ -1,3 +1,8 @@
+3.0.2
+* Revise copyright and license
+* Rename package name
+3.0.0
+* Support pedigree
 2.5.0
 * Remove single_parse
 * Add GPLv3
