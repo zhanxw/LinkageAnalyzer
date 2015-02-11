@@ -126,34 +126,34 @@ single.link <- function(vcfFile,
   collectUsage("single.link")
   log.file <- filename(output, prefix)$log_file
   ret <- tryCatch(
-      {
-        ret <- single.link.impl(vcfFile, pedFile, pheno.name,
-                                output, test, detect, silent, tail,
-                                prefix, plot.it, transform.pheno, log.level)
-        if (ret$returncode == 0) {
-          msg <- paste("Exit successfully", ret$message, sep = " ")
+    {
+      ret <- single.link.impl(vcfFile, pedFile, pheno.name,
+                              output, test, detect, silent, tail,
+                              prefix, plot.it, transform.pheno, log.level)
+      if (ret$returncode == 0) {
+        msg <- paste("Exit successfully", ret$message, sep = " ")
+      } else {
+        if (isIgnorableError(ret)) {
+          # this is a special error,
+          # meaning we will treat it as normal exit but no output files
+          # so returncode are changed from 1 to 0
+          ret$returncode = 0
+          msg <- paste("Exit successfully with no outputs due to", ret$message)
         } else {
-          if (isIgnorableError(ret)) {
-            # this is a special error,
-            # meaning we will treat it as normal exit but no output files
-            # so returncode are changed from 1 to 0
-            ret$returncode = 0
-            msg <- paste("Exit successfully with no outputs due to", ret$message)
-          } else {
-            msg <- paste("Exit failed", ret$message, sep = " ")
-          }
+          msg <- paste("Exit failed", ret$message, sep = " ")
         }
-        report("m", msg, log.file)
-        return(ret)
-      },
-      error = function(err) {
-        snapshot("single.link.impl", "debug.single.link.impl.Rdata")
-        reportError(err)
-        msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
-        msg <- paste("Exit failed", msg, sep = " ")
-        report("m", msg, log.file)
-        return(list(returncode = 1, message = msg))
-      })
+      }
+      report("m", msg, log.file)
+      return(ret)
+    },
+    error = function(err) {
+      snapshot("single.link.impl", "debug.single.link.impl.Rdata")
+      reportError(err)
+      msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
+      msg <- paste("Exit failed", msg, sep = " ")
+      report("m", msg, log.file)
+      return(list(returncode = 1, message = msg))
+    })
 
   return(ret)
 }
@@ -234,24 +234,27 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
 
   ## calculate lethal
   type <- "lethal"
-  loginfo("Perform %s test.", type)
-  for (i in seq_len(nrow(ret))) {
-    ## calculate lethal
-    stopifnot(all(vcf$sampleId == ped$iid))
-    if (i > 10 && is.debug.mode()) {
-      loginfo("DEBUG skipped ", i, "th variant ..\n")
-      next
+  ## (TODO) need to consider general case
+  if (is.ped.standard.g0(ped)) {
+    loginfo("Perform %s test.", type)
+    for (i in seq_len(nrow(ret))) {
+      ## calculate lethal
+      stopifnot(all(vcf$sampleId == ped$iid))
+      if (i > 10 && is.debug.mode()) {
+        loginfo("DEBUG skipped ", i, "th variant ..\n")
+        next
+      }
+      loginfo("Access gene lethality for %s", gene[i])
+      ## encode genotypes
+      tmp <- ped
+      tmp$gt <- convert_gt(vcf$GT[i,], "additive")
+      ## check mother genotypes
+      tmp <- crossCheckMotherGenotype(tmp)
+      ## count mother, offspring by their genotypes
+      tmp <- countForLethal(tmp)
+      ret[i, "lethal"] <- do.call(single.lethal.getPvalue, tmp)
+      ret[i, "lethalCount"] <- paste0(tmp, collapse = ":")
     }
-    loginfo("Access gene lethality for %s", gene[i])
-    ## encode genotypes
-    tmp <- ped
-    tmp$gt <- convert_gt(vcf$GT[i,], "additive")
-    ## check mother genotypes
-    tmp <- crossCheckMotherGenotype(tmp)
-    ## count mother, offspring by their genotypes
-    tmp <- countForLethal(tmp)
-    ret[i, "lethal"] <- do.call(single.lethal.getPvalue, tmp)
-    ret[i, "lethalCount"] <- paste0(tmp, collapse = ":")
   }
 
   pheno.geno <- prepare.model.data(vcf, ped, pheno.name)
@@ -330,7 +333,6 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
       ## encode genotypes
       pheno$gt <- convert_gt(raw.gt, type)
       stopifnot(all(!is.na(pheno$gt)))
-
       ## skip this site when the genotypes are monomorphic
       if (length(unique(pheno$gt)[!is.na(unique(pheno$gt))]) <= 1) {
         loginfo("Skip monomorphic site under %s model", type)
@@ -417,4 +419,3 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
   loginfo("Exit successfully")
   return(list(returncode = 0, message = "", result = ret))
 }
-

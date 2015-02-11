@@ -15,20 +15,20 @@
 ##  ====================================================================================================================================================    
 
 ##  ====================================================================================================================================================
-##  |  This file is part of LinkageAnalyzer.													       |
-##  |																		       |
-##  |  LinkageAnalyzer is free software: you can redistribute it and/or modify									       |
-##  |  it under the terms of the GNU General Public License as published by									       |
-##  |  the Free Software Foundation, either version 3 of the License, or									       |
-##  |  (at your option) any later version.													       |
-##  |																		       |
-##  |  LinkageAnalyzer is distributed in the hope that it will be useful,									       |
-##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
-##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
-##  |  GNU General Public License for more details.												       |
-##  |																		       |
-##  |  You should have received a copy of the GNU General Public License									       |
-##  |  along with LinkageAnalyzer.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  |  This file is part of LinkageAnalyzer.                                                                                                           |
+##  |                                                                                                                                                  |
+##  |  LinkageAnalyzer is free software: you can redistribute it and/or modify                                                                         |
+##  |  it under the terms of the GNU General Public License as published by                                                                            |
+##  |  the Free Software Foundation, either version 3 of the License, or                                                                               |
+##  |  (at your option) any later version.                                                                                                             |
+##  |                                                                                                                                                  |
+##  |  LinkageAnalyzer is distributed in the hope that it will be useful,                                                                              |
+##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of                                                                                  |
+##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                                                                                   |
+##  |  GNU General Public License for more details.                                                                                                    |
+##  |                                                                                                                                                  |
+##  |  You should have received a copy of the GNU General Public License                                                                               |
+##  |  along with LinkageAnalyzer.  If not, see <http://www.gnu.org/licenses/>.                                                                        |
 ##  ====================================================================================================================================================
 
 
@@ -443,7 +443,6 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
   ## start fitting alternative models for each variant
   snapshot("gene.link", "dbg.gene.fit.alt.gene.Rdata")
 
-
   dist.data <- list()
   dist.plots <- list()
   for (i in seq_len(nGene)) {
@@ -532,7 +531,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
 
     # record graph
     if (any(retGene[i, c("additive", "recessive", "dominant")] < 0.05, na.rm = TRUE)) {
-      pheno$gt <- convert_gt(geno[i,], "additive")
+      pheno$gt <- convert_gt(geno.collapse[i,], "additive")
       dist.title <- sprintf("%s (%s:%s)", gene[i], as.character(retGene$chr[i]), as.character(retGene$pos[i]))
       dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, pheno.name, dist.title)
     }

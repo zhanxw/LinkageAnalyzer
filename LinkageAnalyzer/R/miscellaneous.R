@@ -199,7 +199,7 @@ source.all.file <- function(dir = ".") {
   }
 }
 if (FALSE) {
-  source.all.file("~/test.run/LinkageAnalyzer/R")
+  source.all.file("~/proj/linkage/package/LinkageAnalyzer/R")
 }
 
 is.debug.mode <- function() {
@@ -325,4 +325,19 @@ collectUsage <- function(type, track = FALSE) {
   cat("\n") ## need this to begin newline
 
   invisible(NULL)
+}
+
+## return set @param a minus set @param b
+setSubtract <- function(a, b) {
+    return(unique(a[! (a %in% b) ]))
+}
+
+## remove variables in current environments
+rm.variable <- function() {
+  rm(list=setdiff(ls(), lsf.str()))
+}
+
+## remove all names variables/functions form current environment
+rm.all <- function() {
+  rm(list = ls())
 }

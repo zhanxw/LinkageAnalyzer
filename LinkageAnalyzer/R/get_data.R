@@ -165,15 +165,15 @@ get_main <- function(main_file, log_file, detect, transform.pheno=NULL) {
   raw <- read.csv(main_file, header = F, stringsAsFactor = F)
   if (ncol(raw) <= 3) {
     return(list(
-        returncode = 1,
-        message = "No genotypes in the input file for further analysis",
-        raw = raw))
+      returncode = 1,
+      message = "No genotypes in the input file for further analysis",
+      raw = raw))
   }
   raw[1:3, 1:2] <- "na"
   raw <- raw[!raw[, 1] == "", ]
   raw <- raw[, raw[1, ] != "" & (!apply(raw, 2, function(x) {
     all(is.na(x))
-OB  }))]
+    OB  }))]
   raw <- raw[!apply(raw[, -c(1:3), drop = FALSE], 1, function(x) all(x == "FALSE")), ]  # delete all false ones
   raw <- raw[, c(rep(TRUE, 3), raw[3,-seq(3)] != "na")] ## kick out missing phenotypes
   # check names
@@ -353,10 +353,10 @@ OB  }))]
   # return the three tables
 
   return(list(
-      returncode = 0,
-      message = "",
-      data = list(genes = gene, phenotype = pheno, genotype = genotype, bin = bin,
-          unconverted = unconverted)))
+    returncode = 0,
+    message = "",
+    data = list(genes = gene, phenotype = pheno, genotype = genotype, bin = bin,
+      unconverted = unconverted)))
 }
 
 #' Dichotomize a numeric vector into AFFECTED/UNAFFECTED
@@ -408,7 +408,7 @@ dichotomize <- function(x, log_file = NULL) {
                         ret$returncode <- 1
                         return(ret);
                       })
-if (!isSuccess(mclust3)) {return (mclust3)}
+  if (!isSuccess(mclust3)) {return (mclust3)}
 
   if (mclust2$bic > mclust1$bic) {
     break_index <- sum(mclust2$classification == 1)  # find break point
@@ -489,26 +489,6 @@ get.ped <- function(pedFile, pheno = NULL, detect = NULL) {
     suppressWarnings(ped[,i] <- as.numeric(ped[,i]))
   }
 
-  ## check generation
-  markGeneration <- function(ped) {
-    g1.names <- unique(ped[,1])
-    ped$gen <- NA
-    ped$gen[ped$iid %in% g1.names] <- 1
-    g0.names <- c(ped$father[ped$iid %in% g1.names], ped$mother[ped$iid %in% g1.names])
-    ped$gen[ped$iid %in% g0.names] <- 0
-    ped$gen[ped$father %in% g1.names ] <- 2 ## g2 or g3
-    g23.names <- ped$iid[ped$gen == 2]
-    ped$gen[ped$mother %in% g23.names] <- 3
-    ped$gen[ped$father %in% g23.names] <- 3
-    ped$gen[ped$father == "." & ped$mother == "." & is.na(ped$gen)] <- -1 ## founders
-    ## maybe add G4
-    ped$gen
-  }
-  ped$gen <- markGeneration(ped)
-  if (all(is.na(ped$gen))) {
-    stop("Generation of ped file cannot be inferred!\n")
-  }
-
   if (is.null(pheno)) {
     ped$pheno <- ped[,6]
   } else {
@@ -562,7 +542,7 @@ get.vcf <- function(vcfFile, log_file) {
   ## require(stringr)
   if (!grepl("^#CHROM\tPOS", vcf[1])) {
     stop("VCF input does not have valid header: #CHROM\tPOS...")
-  }
+    }
   hdr <- str_split(str_replace(vcf[1], "#CHROM", "CHROM"), "\t")[[1]]
 
   vcf <- vcf[!grepl("^#", vcf)]
@@ -759,6 +739,62 @@ ped.summarize <- function(ped) {
   }
 }
 
+## Calculate generation from pedigree
+markGeneration <- function(ped) {
+  ped$idx <- seq(nrow(ped))
+  markGenerationPerFamily <- function(ped) {
+    ped$gen <- NA
+    founder <- ped[ped[,3] == "." & ped[,4] == ".", 2]
+    # define founder generation to be -1
+    ped$gen[ped[,2] %in% founder] <- -1
+    # print(ped)
+
+    genCurrent <- 0
+    while (any(is.na(ped$gen)) && genCurrent < nrow(ped)) {
+      genPrev <- genCurrent - 1
+      prev <- ped[ped$gen == genPrev, 2]
+      known <- ped[!is.na(ped$gen), 2]
+      idx <- (ped[,3] == "." & ped[,4] %in% prev) |
+        (ped[,4] == "." & ped[,3] %in% prev ) |
+          ( ( (ped[,3] %in% prev) | (ped[,4] %in% prev) ) &
+             (ped[,3] %in% known) & (ped[,4] %in% known) )
+
+      which(idx)
+      ped$gen[idx] <- genCurrent
+      genCurrent <- genCurrent + 1
+
+      # print(genCurrent)
+      # print(ped$gen[idx])
+      # print(ped$gen)
+    }
+
+    ## conventionally, fam id = G1 ids
+    famIds <- unique(ped[,1])
+    stopifnot(length(famIds) == 1)
+    if (famIds %in% ped[,2]) {
+      offset <- ped$gen[ped[,2] == famIds] - 1
+      ped$gen <- ped$gen - offset
+    }
+
+    # print(ped$gen)
+    return(ped)
+  }
+  res <- do.call(rbind, dlply(ped, .(fid), function(x) {markGenerationPerFamily(x)}))
+  res[order(res$idx), ]
+  res$gen
+}
+
+if (FALSE) {
+  setwd("~/proj/linkage/support.general.ped")
+  ped <- get.ped("normal/R0588_td_rsfv_bga.ped", pheno = "norm")
+  ped <- get.ped("g0prime/R0733_circadian_avg_counts.ped", pheno = "norm")
+  ped <- get.ped("incomplete/I1329_ti_b_cell.ped", pheno = "norm")
+  ped <- get.ped("meta/Vmn1r16.ti_b_cell.ped", pheno = "norm")
+  ped$gen <- markGeneration(ped) 
+  tmp <- markGeneration(ped)
+  is.ped.standard.g0(ped)
+}
+
 load.vcf.ped <- function(vcfFile, pedFile, pheno.name) {
   loginfo("Load VCF file: %s ", vcfFile)
   vcf <- get.vcf(vcfFile)
@@ -772,6 +808,12 @@ load.vcf.ped <- function(vcfFile, pedFile, pheno.name) {
 
   loginfo("Load PED file: %s", pedFile)
   ped <- get.ped(pedFile)
+
+  ped$gen <- markGeneration(ped)
+  ## check generation
+  if (all(is.na(ped$gen))) {
+    stop("Generation of ped file cannot be inferred!\n")
+  }
   ped.summarize(ped)
 
   ## verify phenotype name
@@ -804,6 +846,7 @@ load.vcf.ped <- function(vcfFile, pedFile, pheno.name) {
 ## prepare genotype and phenotype for additive/recessive/dominant model
 prepare.model.data <- function(vcf, ped, pheno.name) {
   snapshot("prepare.model.data", "prepare.model.data.Rdata")
+
   ## remove suspicious samples (all REFs)
   idx <- apply(vcf$GT, 2, function(x) {all(x[!is.na(x)] == 0)})
   bad.sample <- vcf$sampleId[idx]
@@ -831,23 +874,23 @@ prepare.model.data <- function(vcf, ped, pheno.name) {
     idx <- tmp$fid %in% subset(tmp2, allMissing == TRUE)$fid
     vcf$GT[i, idx] <- 0  ## impute as REF
   }
+
   # reduce data by:
   #  1. remove mice with missing phenotype
-  #  2. select G3 mice
-  # get G3 mice
+  #  NOTE: we do not select G3 mice, but include all phenotyped mice
   pheno <- ped[!is.na(ped[,pheno.name]), ]
   pheno <- pheno[!is.na(pheno$gen), ]
-  pheno <- pheno[pheno$gen == 3, ]
+  # pheno <- pheno[pheno$gen == 3, ]
   pheno <- pheno[pheno$iid %in% colnames(vcf$GT), ]
 
   # prepare genotype data
-  geno <- vcf$GT[, pheno$iid, drop = FALSE]  # G3 genotypes
+  geno <- vcf$GT[, pheno$iid, drop = FALSE] 
   stopifnot(all(colnames(geno) == pheno$iid))
 
   if (ncol(geno) == 0) {
-    logwarn("No G3 mice to analyze")
+    logwarn("No phenotyped mice to analyze")
   } else if (ncol(geno) == 1) {
-    logwarn("Only one G3 mouse left to analyze")
+    logwarn("Only one phenotyped mouse left to analyze")
   }
 
   # check missing rate
@@ -909,6 +952,13 @@ process.phenotype <- function(ped, pheno.name, detect) {
   return(list(ped = ped))
 }
 
+is.ped.standard.g0 <- function(ped) {
+  if (sum(ped$gen == 0) == 1 &&
+      max(ped$gen == 3) ) {
+    return (TRUE)
+  }
+  return (FALSE)
+}
 ## #' Convert VCF and PED data to Tao's original format
 ## #'
 ## #' @param vcf vcf data
@@ -952,4 +1002,3 @@ process.phenotype <- function(ped, pheno.name, detect) {
 ##   ret$obs <- ncol(geno.g3)
 ##   ret
 ## }
-
