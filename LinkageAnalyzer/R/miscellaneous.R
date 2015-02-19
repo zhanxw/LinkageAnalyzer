@@ -196,6 +196,7 @@ source.all.file <- function(dir = ".") {
     library(ggplot2)
     library(gplots)
     library(lme4)
+    library(logistf)
   }
 }
 if (FALSE) {
@@ -239,6 +240,8 @@ snapshot <- function(call.func.name, fn, force = FALSE) {
   return(0)
 }
 
+# This function is to distinguish errors that external pipeline would allow.
+# In other words, these errors are for they are not marked as failed analysis
 isIgnorableError <- function(x) {
   ## print("x = "); print(x); print(str(x))
   ignorable.errors <- c("dichotomize failed",
@@ -340,4 +343,43 @@ rm.variable <- function() {
 ## remove all names variables/functions form current environment
 rm.all <- function() {
   rm(list = ls())
+}
+
+setupLogging <- function(log.level, log.file) {
+  basicConfig(log.level)
+  addHandler(writeToFile, file = log.file)
+  invisible(NULL)
+}
+
+#' Quick reload library in R
+#' @param dynam whether also unload dynamic library
+#' @export
+reloadLibrary <- function(name, dynam = FALSE) {
+  lib <- sprintf("package:%s", name)
+  ## idx <- which (search() == lib)
+  ## if (length(idx) != 1) {
+  ##   stop("Cannot unload library: ", name)
+  ##   return
+  ## }
+  
+  ## detach(pos = idx, unload = TRUE)
+  detach(lib, unload = TRUE, character.only = TRUE)
+  
+  if (dynam) {
+    library.dynam.unload(name, system.file(package = name))
+  }
+  
+  library(name, character.only = TRUE)
+}
+
+recordRunningInfo <- function() {
+  wd <- getwd()
+  loginfo(paste("Version:", packageVersion("LinkageAnalyzer")))
+  loginfo(paste("Date:", Sys.time()))
+  loginfo(paste("Host:", Sys.info()["nodename"]))
+  calls <- sys.status()$sys.calls
+  for (i in 1:length(calls)) {
+    loginfo(paste("Call:", deparse(calls[[i]], width.cutoff = 500L)))
+  }
+  loginfo(paste("Directory:", wd))
 }

@@ -147,7 +147,7 @@ single.link <- function(vcfFile,
       return(ret)
     },
     error = function(err) {
-      snapshot("single.link.impl", "debug.single.link.impl.Rdata")
+      snapshot("single.link.impl", "dbg.single.link.impl.Rdata")
       reportError(err)
       msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
       msg <- paste("Exit failed", msg, sep = " ")
@@ -158,6 +158,8 @@ single.link <- function(vcfFile,
   return(ret)
 }
 
+#' Implementation of single.link()
+#' @export
 single.link.impl <- function(vcfFile, pedFile, pheno.name,
                              output = ".", test = "wG2",
                              detect = "never", silent = T, tail = "decreasing",
@@ -168,24 +170,18 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
 
   ## set up log file
   log.file <- file.path(getwd(), file.path(output, "log.txt"))
-  basicConfig(log.level)
-  addHandler(writeToFile, file = log.file)
+  setupLogging(log.level, log.file)
   fns <- filename(output, prefix)  # generate output file names
 
   # check validity of parameters
-  fns <- filename(output, prefix)  # generate output file names
   if (!tail %in% c("increasing", "decreasing", "both")) {
     report("e", "Unrecognized option for tail!", fns$log_file)
   }
 
-  report("m", paste("Version:", packageVersion("LinkageAnalyzer")), fns$log_file)
-  report("m", paste("Date:", Sys.time()), fns$log_file)
-  report("m", paste("Host:", Sys.info()["nodename"]) , fns$log_file)
-  report("m", paste("Call:", deparse(sys.status()$sys.calls[[1]])), fns$log_file)
-
-
+  recordRunningInfo()
+  
   ## read data
-  snapshot("single.link.impl", "debug.single.before.load.Rdata")
+  snapshot("single.link.impl", "dbg.single.before.load.Rdata")
   tmp <- load.vcf.ped(vcfFile, pedFile, pheno.name)
   if (isSuccess(tmp)) {
     loginfo("VCF/PED loading succeed.")
@@ -199,7 +195,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
 
   nFamily <- length(unique(ped$fid))
   if (nFamily >  1) {
-    msg <- sprintf("Detect %d families in PED file, please try other analysis: meta.single.link().", length(unique(ped$fid)))
+    msg <- sprintf("Detect multiple (%d) families from PED file, please try other analysis: meta.single.link().", length(unique(ped$fid)))
     logerror(msg)
     return(list(returncode = 1, message = msg))
   } else if (nFamily <= 0){
@@ -230,11 +226,11 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
   rownames(ret) <- NULL
 
   loginfo("Load data complete")
-  snapshot("single.link.impl", "debug.single.load.Rdata")
+  snapshot("single.link.impl", "dbg.single.load.Rdata")
 
   ## calculate lethal
   type <- "lethal"
-  ## (TODO) need to consider general case
+  ## (TODO) need to consider general case, waiting for ped/vcf examples
   if (is.ped.standard.g0(ped)) {
     loginfo("Perform %s test.", type)
     for (i in seq_len(nrow(ret))) {
@@ -263,19 +259,19 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
   nVariant <- nrow(geno)
 
   # set-up null model
-  null.model <- create.null.model(pheno, pheno.name, test)
-  if (!isSuccess(null.model)) {
-    return(null.model)
+  null <- create.null.model(pheno, pheno.name, test)
+  if (!isSuccess(null)) {
+    return(null)
   }
-  has.random.effect <- grepl("\\(", null.model)
-  isBinary <- is.factor(pheno[,pheno.name])
+  has.random.effect <- null$has.random.effect
+  isBinary <- null$isBinary
 
   snapshot("calc.genetic", "calc.genetic.Rdata")
   ret <- calc.genetic(ret, geno, pheno, pheno.name, isBinary)
-  head(ret)
+  ## head(ret)
 
   # fit null model
-  null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
+  null <- fit.null.model(null, pheno)
   if (isSuccess(null)) {
     loginfo("Finished fitting null model\n")
   } else {
@@ -314,10 +310,10 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
     # handle missing
     ret[i, "NMISS"] <- NMISS <- sum(is.na(pheno$gt))
     if (NMISS > 0 ) {
-      loginfo("Refit null model due to %d missing genotypes", sum(is.na(pheno$gt)))
+      loginfo("Refit null model due to %d missing genotypes", NMISS)
       pheno <- pheno[!is.na(pheno$gt), ]
-      null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
-      if (!isSuccess(null)) {
+      null <- fit.null.model(null, pheno)
+     if (!isSuccess(null)) {
         logwarn("Null model fit failed.")
         null <- null.orig
         pheno <- pheno.orig
@@ -341,7 +337,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
       }
 
       ## fit alternative model
-      alt.model <- paste0(null.model, " + gt")
+      alt.model <- paste0(null$formula, " + gt")
       if (has.random.effect) {
         alt <- run.mixed.effect.alt.model(isBinary, alt.model, pheno)
       } else {
@@ -354,7 +350,7 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
       ## calculate p-value
       if (isSuccess(alt)) {
         ## no error occurred, using tradition anova tests
-        pval <- anova(null, alt)$"Pr(>Chisq)"[2]
+        pval <- anova(null$result, alt)$"Pr(>Chisq)"[2]
         if (is.na(pval)) {
           pval <- 1
         }
@@ -373,7 +369,6 @@ single.link.impl <- function(vcfFile, pedFile, pheno.name,
     ## restore null model
     null <- null.orig
     pheno <- pheno.orig
-
     # record graph
     if (any(ret[i, c("additive", "recessive", "dominant")] < 0.05, na.rm = TRUE)) {
       pheno$gt <- convert_gt(geno[i,], "additive")

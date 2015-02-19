@@ -12,7 +12,7 @@
 ##  |       SOUTHWESTERN HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.                                   |
 ##  |  c.   This software contains copyrighted materials from R-package, ggplot2, gplots, gridExtra, lme4, logging, mclust, plyr and stringr.          |
 ##  |       Corresponding terms and conditions apply.                                                                                                  |
-##  ====================================================================================================================================================    
+##  ====================================================================================================================================================
 
 ##  ====================================================================================================================================================
 ##  |  This file is part of LinkageAnalyzer.                                                                                                           |
@@ -113,7 +113,7 @@ gene.single.link <- function(vcfFile, ## a vector of list
         return(ret)
       },
       error = function(err) {
-        snapshot("gene.single.link.impl", "debug.gene.single.link.impl.Rdata")
+        snapshot("gene.single.link.impl", "dbg.gene.single.link.impl.Rdata")
 
         if (err$message == "Response is constant - cannot fit the model"){
           # this is another special error,
@@ -150,11 +150,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
 
   ## set up log file
   log.file <- file.path(getwd(), file.path(output, "log.txt"))
-  basicConfig(log.level)
-  addHandler(writeToFile, file = log.file)
-  ## if (file.exists(log.file)) {
-  ##   file.remove(log.file)
-  ## }
+  setupLogging(log.level, log.file)
   fns <- filename(output, prefix)  # generate output file names
 
   ## examine input parameters
@@ -165,14 +161,8 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
   }
 
   ## record running environment
-  wd <- getwd()
-  loginfo(paste("Version:", packageVersion("LinkageAnalyzer")))
-  loginfo(paste("Date:", Sys.time()))
-  loginfo(paste("Host:", Sys.info()["nodename"]))
-  loginfo(paste("Call:", deparse(sys.status()$sys.calls[[1]], width.cutoff = 500L)))
-  loginfo(paste("Directory:", wd))
-
-
+  recordRunningInfo()
+  
   ## read data
   tmp <- load.vcf.ped(vcfFile, pedFile, pheno.name)
   if (isSuccess(tmp)) {
@@ -235,19 +225,19 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
   nVariant <- nrow(geno)
 
   # set-up null model
-  null.model <- create.null.model(pheno, pheno.name, test)
-  if (!isSuccess(null.model)) {
-    return(null.model)
+  null <- create.null.model(pheno, pheno.name, test)
+  if (!isSuccess(null)) {
+    return(null)
   }
-  has.random.effect <- grepl("\\(", null.model)
-  isBinary <- is.factor(pheno[,pheno.name])
+  has.random.effect <- null$has.random.effect
+  isBinary <- null$isBinary
 
   snapshot("calc.genetic", "calc.genetic.Rdata")
   ret <- calc.genetic(ret, geno, pheno, pheno.name, isBinary)
   head(ret)
 
   # fit null model
-  null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
+  null <- fit.null.model(null)
   if (isSuccess(null)) {
     loginfo("Finished fitting null model\n")
   } else {
@@ -286,7 +276,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
     if (NMISS > 0 ) {
       loginfo("Refit null model due to %d missing genotypes", sum(is.na(pheno$gt)))
       pheno <- pheno[!is.na(pheno$gt), ]
-      null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
+      null <- fit.null.model(null.model, pheno)
       if (!isSuccess(null)) {
         logwarn("Null model fit failed.")
         null <- null.orig
@@ -312,7 +302,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
       }
 
       ## fit alternative model
-      alt.model <- paste0(null.model, " + gt")
+      alt.model <- paste0(null$formula, " + gt")
       if (has.random.effect) {
         alt <- run.mixed.effect.alt.model(isBinary, alt.model, pheno)
       } else {
@@ -325,7 +315,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
       ## calculate p-value
       if (isSuccess(alt)) {
         ## no error occurred, using tradition anova tests
-        pval <- anova(null, alt)$"Pr(>Chisq)"[2]
+        pval <- anova(null$result, alt)$"Pr(>Chisq)"[2]
         if (is.na(pval)) {
           pval <- 1
         }
@@ -470,7 +460,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
     if (NMISS > 0 ) {
       loginfo("Refit null model due to %d missing genotypes", sum(is.na(pheno$gt)))
       pheno <- pheno[!is.na(pheno$gt), ]
-      null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
+      null <- fit.null.model(null.model, pheno)
       if (!isSuccess(null)) {
         logwarn("Null model fit failed.")
         null <- null.orig
@@ -496,7 +486,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
       }
 
       ## fit alternative model
-      alt.model <- paste0(null.model, " + gt")
+      alt.model <- paste0(null$formula, " + gt")
       if (has.random.effect) {
         alt <- run.mixed.effect.alt.model(isBinary, alt.model, pheno)
       } else {
@@ -509,7 +499,7 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
       ## calculate p-value
       if (isSuccess(alt)) {
         ## no error occurred, using tradition anova tests
-        pval <- anova(null, alt)$"Pr(>Chisq)"[2]
+        pval <- anova(null$result, alt)$"Pr(>Chisq)"[2]
         if (is.na(pval)) {
           pval <- 1
         }
@@ -576,110 +566,6 @@ gene.single.link.impl <- function(vcfFile, ## a vector of list
   loginfo("Exit successfully")
   return(list(returncode = 0, message = "", result = ret))
 }
-
-
-## runSingleVariant <- function(pheno, pheno.name, isBinary,
-##                              geno, gene,
-##                              null.model, has.random.effect, tail,
-##                              ret) {
-##   nVariant <- nrow(geno)
-##   dist.data <- list()
-##   dist.plots <- list()
-##   for (i in 1:nVariant) {
-##     if (i > 10 && is.debug.mode()) {
-##       cat("DEBUG skipped ", i, "th variant ..\n")
-##       next
-##     }
-##     loginfo("Process %d  out of %d variant: %s", i, nVariant, gene[i])
-
-##     # record data
-##     pheno$gt <- convert_gt(geno[i,], "additive")
-##     dist.data[[length(dist.data) + 1]] <- pheno
-
-##     ## skip mono site
-##     if (length(unique(pheno$gt)) == 1) {
-##       loginfo("Skip monomorphic site")
-##       next
-##     }
-
-##     # store null model
-##     null.orig <- null
-##     pheno.orig <- pheno
-
-##     # handle missing
-##     ret[i, "NMISS"] <- NMISS <- sum(is.na(pheno$gt))
-##     if (NMISS > 0 ) {
-##       loginfo("Refit null model due to %d missing genotypes", sum(is.na(pheno$gt)))
-##       pheno <- pheno[!is.na(pheno$gt), ]
-##       null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
-##       if (!isSuccess(null)) {
-##         logwarn("Null model fit failed.")
-##         null <- null.orig
-##         pheno <- pheno.orig
-##         next
-##       }
-##     }
-
-##     # calcualte each model
-##     raw.gt <- pheno$gt
-##     for (type in c("additive", "recessive", "dominant")) {
-##       loginfo("Perform %s test on %d samples", type, nrow(pheno))
-
-##       ## encode genotypes
-##       pheno$gt <- convert_gt(raw.gt, type)
-##       stopifnot(all(!is.na(pheno$gt)))
-
-##       ## skip this site when the genotypes are monomorphic
-##       if (length(unique(pheno$gt)[!is.na(unique(pheno$gt))]) <= 1) {
-##         loginfo("Skip monomorphic site under %s model", type)
-##         ret[i, type] <- pval <- 1
-##         next
-##       }
-
-##       ## fit alternative model
-##       alt.model <- paste0(null.model, " + gt")
-##       if (has.random.effect) {
-##         alt <- run.mixed.effect.alt.model(isBinary, alt.model, pheno)
-##       } else {
-##         alt <- list(returncode = 1, message = "no random effect")
-##       }
-
-##       ## check convergence
-##       alt <- check.mixed.effect.alt.model.converge(alt)
-
-##       ## calculate p-value
-##       if (isSuccess(alt)) {
-##         ## no error occurred, using tradition anova tests
-##         pval <- anova(null, alt)$"Pr(>Chisq)"[2]
-##         if (is.na(pval)) {
-##           pval <- 1
-##         }
-##         direction <- fixef(alt)["gt"] > 0  # TRUE means protective effect, FALSE means harmful effect (desired)
-##         if (!is.na(direction)) {
-##           pval <- convert_tail(direction, pval, tail)
-##         }
-##       } else {
-##         loginfo("Refit alternative model using reduced data and Wald test\n")
-##         pval <- run.fixed.effect.alt.model(isBinary, alt.model, pheno, pheno.name, tail)
-##       }
-##       ret[i, type] <- pval
-##     }
-##     ret[i, "TDT"] <- NA     ## TODO: implement this
-
-##     ## restore null model
-##     null <- null.orig
-##     pheno <- pheno.orig
-
-##     # record graph
-##     if (any(ret[i, c("additive", "recessive", "dominant")] < 0.05, na.rm = TRUE)) {
-##       pheno$gt <- convert_gt(geno[i,], "additive")
-##       dist.title <- sprintf("%s (%s:%s)", gene[i], as.character(ret$chr[i]), as.character(ret$pos[i]))
-##       dist.plots[[length(dist.plots) + 1]] <- plot.distribution(pheno, pheno.name, dist.title)
-##     }
-##   }
-##   return ()
-
-## }
 
 ## return collapsed genotype from @param geno, ordered by @param gene
 collapseGenotypeByGene <- function(geno, gene) {

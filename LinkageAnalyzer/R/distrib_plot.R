@@ -15,20 +15,20 @@
 ##  ====================================================================================================================================================    
 
 ##  ====================================================================================================================================================
-##  |  This file is part of LinkageAnalyzer.													       |
-##  |																		       |
-##  |  LinkageAnalyzer is free software: you can redistribute it and/or modify									       |
-##  |  it under the terms of the GNU General Public License as published by									       |
-##  |  the Free Software Foundation, either version 3 of the License, or									       |
-##  |  (at your option) any later version.													       |
-##  |																		       |
-##  |  LinkageAnalyzer is distributed in the hope that it will be useful,									       |
-##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
-##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
-##  |  GNU General Public License for more details.												       |
-##  |																		       |
-##  |  You should have received a copy of the GNU General Public License									       |
-##  |  along with LinkageAnalyzer.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  |  This file is part of LinkageAnalyzer.                                                                                                           |
+##  |                                                                                                                                                  |
+##  |  LinkageAnalyzer is free software: you can redistribute it and/or modify                                                                         |
+##  |  it under the terms of the GNU General Public License as published by                                                                            |
+##  |  the Free Software Foundation, either version 3 of the License, or                                                                               |
+##  |  (at your option) any later version.                                                                                                             |
+##  |                                                                                                                                                  |
+##  |  LinkageAnalyzer is distributed in the hope that it will be useful,                                                                              |
+##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of                                                                                  |
+##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                                                                                   |
+##  |  GNU General Public License for more details.                                                                                                    |
+##  |                                                                                                                                                  |
+##  |  You should have received a copy of the GNU General Public License                                                                               |
+##  |  along with LinkageAnalyzer.  If not, see <http://www.gnu.org/licenses/>.                                                                        |
 ##  ====================================================================================================================================================
 
 
@@ -87,3 +87,18 @@ plot.distribution <- function(pheno, pheno.name, main = "") {
         xlim(-0.5, 2.5) + ggtitle(main)
   return(g)
 }
+
+# arrange plots into multiple subfigures and save to a PDF file
+# dist.plots list of ggplot2 objects
+save.dist.plot <- function(dist.plots, nrow, ncol, fn) {
+  nplots <- length(dist.plots)
+  loginfo("%d distribution plots to be generated", nplots)
+  if (nplots == 0) {
+    df <- data.frame()
+    dist.plots[[1]] <- ggplot(df) + geom_point() + xlim(0, 3) + ylim(0, 100) + ggtitle("No data to plot")
+  }
+  ## require(gridExtra)
+  tmp <- do.call(marrangeGrob, c(dist.plots, list(nrow=nrow, ncol=ncol)))
+  ggsave(filename = fn, tmp, width = 8, height = 16)
+}
+

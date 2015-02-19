@@ -2,7 +2,7 @@ Package: LinkageAnalyzer
 Type: Package
 Title: Identification of genotypes with statistically significant
     associations with phenotypes and lethality
-Version: 3.0.3
+Version: 3.0.4
 Date: 2015-1-20
 Authors@R: c(person("Xiaowei", "Zhan", role = c("aut", "cph", "cre"), email =
     "Xiaowei.Zhan@UTSouthwestern.edu"), person("Tao", "Wang", role = c("aut",

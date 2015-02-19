@@ -15,20 +15,20 @@
 ##  ====================================================================================================================================================    
 
 ##  ====================================================================================================================================================
-##  |  This file is part of LinkageAnalyzer.													       |
-##  |																		       |
-##  |  LinkageAnalyzer is free software: you can redistribute it and/or modify									       |
-##  |  it under the terms of the GNU General Public License as published by									       |
-##  |  the Free Software Foundation, either version 3 of the License, or									       |
-##  |  (at your option) any later version.													       |
-##  |																		       |
-##  |  LinkageAnalyzer is distributed in the hope that it will be useful,									       |
-##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of										       |
-##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the										       |
-##  |  GNU General Public License for more details.												       |
-##  |																		       |
-##  |  You should have received a copy of the GNU General Public License									       |
-##  |  along with LinkageAnalyzer.  If not, see <http://www.gnu.org/licenses/>.									       |
+##  |  This file is part of LinkageAnalyzer.                                                                                                           |
+##  |                                                                                                                                                  |
+##  |  LinkageAnalyzer is free software: you can redistribute it and/or modify                                                                         |
+##  |  it under the terms of the GNU General Public License as published by                                                                            |
+##  |  the Free Software Foundation, either version 3 of the License, or                                                                               |
+##  |  (at your option) any later version.                                                                                                             |
+##  |                                                                                                                                                  |
+##  |  LinkageAnalyzer is distributed in the hope that it will be useful,                                                                              |
+##  |  but WITHOUT ANY WARRANTY; without even the implied warranty of                                                                                  |
+##  |  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                                                                                   |
+##  |  GNU General Public License for more details.                                                                                                    |
+##  |                                                                                                                                                  |
+##  |  You should have received a copy of the GNU General Public License                                                                               |
+##  |  along with LinkageAnalyzer.  If not, see <http://www.gnu.org/licenses/>.                                                                        |
 ##  ====================================================================================================================================================
 
 
@@ -140,7 +140,7 @@ double.link <- function(vcfFile,
         return(ret)
       },
       error = function(err) {
-        snapshot("double.link.impl", "debug.double.link.impl.Rdata")
+        snapshot("double.link.impl", "dbg.double.link.impl.Rdata")
         reportError(err)
         msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
         msg <- paste("Exit failed", msg, sep = " ")
@@ -174,14 +174,10 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
     report("e", "Unrecognized option for tail!", fns$log_file)
   }
 
-  report("m", paste("Version:", packageVersion("LinkageAnalyzer")), fns$log_file)
-  report("m", paste("Date:", Sys.time()), fns$log_file)
-  report("m", paste("Host:", Sys.info()["nodename"]) , fns$log_file)
-  report("m", paste("Call:", deparse(sys.status()$sys.calls[[1]])), fns$log_file)
-
-
+  recordRunningInfo()
+  
   ## read data
-  snapshot("double.link.impl", "debug.double.before.load.Rdata")
+  snapshot("double.link.impl", "dbg.double.before.load.Rdata")
   tmp <- load.vcf.ped(vcfFile, pedFile, pheno.name)
   if (isSuccess(tmp)) {
     loginfo("VCF/PED loading succeed.")
@@ -232,7 +228,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
   ## rownames(ret) <- NULL
 
   loginfo("Load data complete")
-  snapshot("double.link.impl", "debug.double.load.Rdata")
+  snapshot("double.link.impl", "dbg.double.load.Rdata")
 
 
   ## calculate lethal (TODO)
@@ -274,14 +270,14 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
   nVariant <- nrow(geno)
 
   # set-up null model
-  null.model <- create.null.model(pheno, pheno.name, test)
-  if (!isSuccess(null.model)) {
-    return(null.model)
+  null <- create.null.model(pheno, pheno.name, test)
+  if (!isSuccess(null)) {
+    return(null)
   }
-  has.random.effect <- grepl("\\(", null.model)
-  isBinary <- is.factor(pheno[,pheno.name])
+  has.random.effect <- null$has.random.effect
+  isBinary <- null$isBinary
 
-  null <- fit.null.model(null.model, pheno, isBinary, has.random.effect)
+  null <- fit.null.model(null, pheno)
   if (isSuccess(null)) {
     loginfo("Finished fitting null model\n")
   } else {
@@ -328,8 +324,10 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
       }  # too many NA values
 
       # prepare table of input and response variables
-      data <- data.frame(pt = pheno[,pheno.name], sex = pheno$sex,
-                         mother = pheno$mother, gt1 = convert_gt(gt1, "additive"),
+      data <- data.frame(pt = pheno[,pheno.name],
+                         sex = pheno$sex,
+                         mother = pheno$mother,
+                         gt1 = convert_gt(gt1, "additive"),
                          gt2 = convert_gt(gt2, "additive"))
       hasMissingGeno <- any(is.na(data$gt1) | is.na(data$gt2))
       if (hasMissingGeno) {
@@ -393,7 +391,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
                 pval <- anova_test(data, isBinary, test, silent, fns$log_file, tail, null.model = null.model)$pvalue
               },
               error = function(err) {
-                snapshot("double.link.impl", "debug.double.link.impl.Rdata")
+                snapshot("double.link.impl", "dbg.double.link.impl.Rdata")
                 reportError(err)
                 msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
                 msg <- paste("Fitting failed", msg, sep = " ")
@@ -706,7 +704,7 @@ double.link.impl <- function(vcfFile, pedFile, pheno.name,
 ##                 pval <- anova_test(data, input$bin, test, silent, fns$log_file, tail, null.model = null.model)$pvalue
 ##               },
 ##               error = function(err) {
-##                 snapshot("single.link.impl", "debug.single.link.impl.Rdata")
+##                 snapshot("single.link.impl", "dbg.single.link.impl.Rdata")
 ##                 print(str(err))
 ##                 print(err)
 ##                 msg <- ifelse(is.null(err[["message"]]), "UnknownError", err$message)
